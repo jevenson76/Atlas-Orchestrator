@@ -429,6 +429,95 @@ def inject_custom_css():
         }
     }
 
+    @keyframes subtlePulse {
+        0%, 100% {
+            box-shadow: 0 4px 15px rgba(44, 83, 100, 0.3);
+        }
+        50% {
+            box-shadow: 0 6px 25px rgba(44, 83, 100, 0.5);
+        }
+    }
+
+    /* ================================================================
+       ENTERPRISE BUTTON ENHANCEMENTS
+       ================================================================ */
+
+    /* Primary action buttons - enhanced styling */
+    .stButton button[kind="primary"] {
+        background: linear-gradient(135deg, #2c5364 0%, #0f2027 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(44, 83, 100, 0.3);
+        animation: subtlePulse 3s ease-in-out infinite;
+    }
+
+    .stButton button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(44, 83, 100, 0.5);
+        background: linear-gradient(135deg, #0f2027 0%, #2c5364 100%);
+    }
+
+    .stButton button[kind="primary"]:active {
+        transform: translateY(0px);
+        box-shadow: 0 2px 10px rgba(44, 83, 100, 0.3);
+    }
+
+    /* Text inputs - enhanced styling */
+    .stTextInput input {
+        border-radius: 8px;
+        border: 2px solid #e1e8ed;
+        transition: all 0.3s ease;
+    }
+
+    .stTextInput input:focus {
+        border-color: #2c5364;
+        box-shadow: 0 0 0 3px rgba(44, 83, 100, 0.1);
+    }
+
+    .stTextInput input:disabled {
+        background-color: #f8f9fa;
+        border-color: #dee2e6;
+        color: #6c757d;
+        cursor: not-allowed;
+    }
+
+    /* Select boxes - enhanced styling */
+    .stSelectbox > div > div {
+        border-radius: 8px;
+        border: 2px solid #e1e8ed;
+        transition: all 0.3s ease;
+    }
+
+    .stSelectbox > div > div:focus-within {
+        border-color: #2c5364;
+        box-shadow: 0 0 0 3px rgba(44, 83, 100, 0.1);
+    }
+
+    /* Sliders - enhanced styling */
+    .stSlider > div > div > div {
+        background-color: #2c5364;
+    }
+
+    /* Checkboxes - enhanced styling */
+    .stCheckbox > label {
+        transition: all 0.2s ease;
+    }
+
+    .stCheckbox > label:hover {
+        color: #2c5364;
+    }
+
+    /* Info/Success/Warning/Error boxes - enhanced styling */
+    .stAlert {
+        border-radius: 12px;
+        border-left: 4px solid;
+        animation: fadeInLeft 0.4s;
+    }
+
     /* ================================================================
        RESPONSIVE DESIGN
        ================================================================ */
@@ -548,6 +637,14 @@ def render_adz_dropzone():
 
     if uploaded_file is not None:
         st.success(f"✅ File received: {uploaded_file.name}")
+
+        # Static Source Field - Non-editable display of original source
+        st.text_input(
+            "📎 Task Source",
+            value=uploaded_file.name,
+            disabled=True,
+            help="Original file that initiated this task (cannot be modified)"
+        )
 
         # Parse file content
         try:
@@ -892,6 +989,224 @@ def render_task_history():
         st.info("No tasks submitted yet. Use the Agentic Drop Zone or Manual Builder above.")
 
 # ============================================================================
+# JSON PROMPT GENERATOR
+# ============================================================================
+
+@st.dialog("🎯 Intelligent Task JSON Generator", width="large")
+def show_json_generator():
+    """
+    Interactive JSON task generator with intelligent prompt optimization.
+    Uses lightweight Haiku agent to refine vague inputs with follow-up questions.
+    """
+    st.markdown("""
+    <div style="margin-bottom: 1.5rem;">
+        <h3 style="color: #0f2027; margin-bottom: 0.5rem;">Build Your Task</h3>
+        <p style="color: #666;">Describe what you want to accomplish, and I'll help you create a properly formatted task.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Initialize session state for generator
+    if 'generator_task_description' not in st.session_state:
+        st.session_state.generator_task_description = ""
+    if 'generator_follow_ups' not in st.session_state:
+        st.session_state.generator_follow_ups = []
+    if 'generator_refined_prompt' not in st.session_state:
+        st.session_state.generator_refined_prompt = ""
+
+    # Step 1: Task Description
+    task_description = st.text_area(
+        "What do you want to accomplish?",
+        value=st.session_state.generator_task_description,
+        placeholder="Example: Analyze customer sentiment from recent reviews and identify key themes...",
+        height=120,
+        help="Describe your task in natural language. The more detail, the better!"
+    )
+
+    # Step 2: Check if input is too vague and trigger follow-ups
+    if task_description and task_description != st.session_state.generator_task_description:
+        st.session_state.generator_task_description = task_description
+
+        # Simple heuristic: if input is very short, trigger follow-ups
+        if len(task_description.strip()) < 50:
+            st.warning("⚠️ Your description is quite brief. Let me ask some clarifying questions...")
+
+            # Trigger lightweight Haiku agent for follow-up questions
+            with st.spinner("🧠 Analyzing your request..."):
+                try:
+                    from resilient_agent import ResilientBaseAgent
+                    from core.constants import Models
+
+                    optimizer = ResilientBaseAgent(
+                        role="Task Clarification Assistant",
+                        model=Models.HAIKU,
+                        temperature=0.3,
+                        timeout=15
+                    )
+
+                    follow_up_prompt = f"""You are a helpful task clarification assistant. The user provided this brief task description:
+
+"{task_description}"
+
+Generate 3-4 clarifying questions to help make this task more specific and actionable. Format as a numbered list.
+Focus on:
+1. What specific outcome they want
+2. What format/structure the output should have
+3. Any constraints or requirements
+4. Data sources or context needed
+
+Return ONLY the numbered questions, one per line."""
+
+                    import asyncio
+                    response = asyncio.run(optimizer.generate(follow_up_prompt, context={}))
+                    st.session_state.generator_follow_ups = response.strip().split('\n')
+
+                    st.info("💡 **Consider these clarifications:**")
+                    for question in st.session_state.generator_follow_ups:
+                        if question.strip():
+                            st.markdown(f"- {question.strip()}")
+
+                except Exception as e:
+                    logger.error(f"Error generating follow-ups: {e}")
+                    st.session_state.generator_follow_ups = []
+
+    # Step 3: Additional Details (if follow-ups were shown)
+    additional_details = ""
+    if st.session_state.generator_follow_ups:
+        additional_details = st.text_area(
+            "Additional Details (address the questions above)",
+            placeholder="Provide more context based on the clarifying questions...",
+            height=100
+        )
+
+    # Step 4: Configuration Options
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        model_choice = st.selectbox(
+            "Model",
+            options=[
+                ("claude-sonnet-4", "Sonnet 4 (Balanced)"),
+                ("claude-opus-4-20250514", "Opus 4.1 (Deep Reasoning + UltraThink)"),
+                ("claude-3-5-haiku-20241022", "Haiku 3.5 (Fast & Efficient)")
+            ],
+            format_func=lambda x: x[1],
+            help="Choose the Claude model for task execution"
+        )
+
+        workflow = st.selectbox(
+            "Workflow Mode",
+            options=[
+                "automatic",
+                "specialized_roles",
+                "parallel_execution",
+                "progressive_enhancement"
+            ],
+            help="Select orchestration workflow"
+        )
+
+    with col2:
+        temperature = st.slider(
+            "Temperature",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.7,
+            step=0.1,
+            help="Controls randomness (0=deterministic, 1=creative)"
+        )
+
+        max_tokens = st.number_input(
+            "Max Tokens",
+            min_value=100,
+            max_value=8000,
+            value=2000,
+            step=100,
+            help="Maximum length of response"
+        )
+
+    # Step 5: RAG Topic Selection
+    st.markdown("---")
+    st.markdown("**🎯 RAG Topic Filters (Optional)**")
+    topic_cols = st.columns(4)
+    selected_topics = []
+
+    available_topics = [
+        "Medical & Healthcare", "Automotive", "Financial & Legal", "Technology",
+        "Education", "Business", "Science", "General Knowledge"
+    ]
+
+    for idx, topic in enumerate(available_topics):
+        with topic_cols[idx % 4]:
+            if st.checkbox(topic, key=f"gen_{topic}"):
+                selected_topics.append(topic)
+
+    # Step 6: Source Field (for tracking)
+    st.markdown("---")
+    source = st.text_input(
+        "Source (Optional)",
+        placeholder="e.g., GitHub link, PDF filename, or description of origin",
+        help="Track where this task originated from"
+    )
+
+    # Step 7: Generate and Submit
+    st.markdown("---")
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        if st.button("🚀 Generate & Submit to ADZ", use_container_width=True, type="primary"):
+            if not task_description:
+                st.error("❌ Please provide a task description")
+                return
+
+            # Combine description with additional details
+            full_task = task_description
+            if additional_details:
+                full_task += f"\n\nAdditional Context:\n{additional_details}"
+
+            # Build JSON payload
+            task_json = {
+                "task": full_task,
+                "model": model_choice[0],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "workflow_mode": workflow,
+                "source": source if source else "JSON Generator",
+                "metadata": {
+                    "generated_by": "Atlas JSON Generator",
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+
+            # Add RAG topics if selected
+            if selected_topics:
+                task_json["rag_topics"] = selected_topics
+                task_json["context"] = {
+                    "rag_filter": {
+                        "topics": selected_topics,
+                        "routing_strategy": "topic_optimized"
+                    }
+                }
+
+            # Submit to ADZ queue
+            try:
+                task_id = submit_task_to_adz(task_json)
+                st.success(f"✅ Task generated and submitted successfully!")
+                st.code(json.dumps(task_json, indent=2), language="json")
+                st.info(f"**Task ID**: `{task_id}`")
+
+                # Clear generator state
+                st.session_state.generator_task_description = ""
+                st.session_state.generator_follow_ups = []
+                st.session_state.generator_refined_prompt = ""
+
+                # Wait a moment then close dialog
+                time.sleep(2)
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ Error submitting task: {e}")
+
+# ============================================================================
 # MAIN APPLICATION
 # ============================================================================
 
@@ -913,6 +1228,14 @@ def main():
 
     # Security status
     render_security_status()
+
+    st.markdown("---")
+
+    # JSON Generator Button - Prominently placed on home page
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🎯 Generate Task JSON", use_container_width=True, type="primary", help="Launch intelligent task builder with AI-powered prompt refinement"):
+            show_json_generator()
 
     st.markdown("---")
 
