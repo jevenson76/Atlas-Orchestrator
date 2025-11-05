@@ -795,29 +795,253 @@ def render_rag_topic_panel():
 # ============================================================================
 
 def render_observability_dashboard():
-    """Render real-time multi-agent observability dashboard."""
-    st.markdown('<div class="section-header">📊 MULTI-AGENT OBSERVABILITY</div>', unsafe_allow_html=True)
+    """
+    Enhanced Real-Time Observability Dashboard (Phase E.1)
+
+    Displays live metrics from C4 event stream including:
+    - Quality scores from Opus 4.1 Critic
+    - Cost tracking breakdown by model
+    - Execution timeline visualization
+    - Provider health status indicators
+    """
+    st.markdown('<div class="section-header">📊 LIVE MONITOR - Multi-Agent Observability</div>', unsafe_allow_html=True)
 
     st.markdown("""
-    **Real-time Event Stream**: Monitor agent execution, model utilization, and workflow progress.
-    Events are captured via C4 hooks and displayed with provider/model attribution.
+    **Real-time Intelligence**: Monitor AI collaboration, quality metrics, and cost analytics.
+    Data sourced from C4 hooks with full provider attribution.
     """)
 
-    # Event stream
-    if STREAM_FILE.exists():
-        try:
-            with open(STREAM_FILE, 'r') as f:
-                events = [json.loads(line) for line in f.readlines()[-20:]]  # Last 20 events
+    # Load and parse events
+    events = load_c4_events()
 
-            if events:
-                for event in reversed(events):  # Most recent first
-                    render_event_card(event)
-            else:
-                st.info("No events yet. Submit a task to see real-time execution.")
-        except Exception as e:
-            st.warning(f"Could not load event stream: {e}")
+    if not events:
+        st.info("🌐 Event stream will appear here when tasks are processed.")
+        st.markdown("""
+        **What you'll see:**
+        - 📈 Quality Scores from Opus 4.1 Critic
+        - 💰 Real-time cost breakdown by model
+        - ⏱️ Execution timeline across agents
+        - 🔄 Provider health (Claude/Gemini/OpenAI)
+        """)
+        return
+
+    # Layout: Metrics in columns
+    col1, col2, col3, col4 = st.columns(4)
+
+    # Metric 1: Quality Scores (from Opus 4.1 Critic)
+    with col1:
+        render_quality_scores_metric(events)
+
+    # Metric 2: Cost Tracking
+    with col2:
+        render_cost_tracking_metric(events)
+
+    # Metric 3: Active Tasks
+    with col3:
+        render_active_tasks_metric(events)
+
+    # Metric 4: Provider Health
+    with col4:
+        render_provider_health_metric(events)
+
+    st.markdown("---")
+
+    # Section: Cost Breakdown by Model
+    st.markdown("### 💰 Cost Breakdown by Model")
+    render_cost_breakdown_chart(events)
+
+    st.markdown("---")
+
+    # Section: Execution Timeline
+    st.markdown("### ⏱️ Execution Timeline")
+    render_execution_timeline(events)
+
+    st.markdown("---")
+
+    # Section: Recent Events (Last 10)
+    st.markdown("### 📋 Recent Events")
+    with st.expander("View Event Stream", expanded=False):
+        for event in reversed(events[-10:]):
+            render_event_card(event)
+
+
+def load_c4_events() -> List[Dict[str, Any]]:
+    """Load events from C4 event stream file."""
+    if not STREAM_FILE.exists():
+        return []
+
+    try:
+        with open(STREAM_FILE, 'r') as f:
+            events = [json.loads(line) for line in f.readlines()]
+        return events
+    except Exception as e:
+        st.warning(f"Could not load event stream: {e}")
+        return []
+
+
+def render_quality_scores_metric(events: List[Dict[str, Any]]):
+    """Display quality scores from Opus 4.1 Critic."""
+    # Extract quality scores from critic events
+    critic_events = [
+        e for e in events
+        if e.get("event_type") in ["critic.completed", "quality.measured"]
+        and e.get("quality_score") is not None
+    ]
+
+    if critic_events:
+        latest_score = critic_events[-1].get("quality_score", 0)
+        avg_score = sum(e.get("quality_score", 0) for e in critic_events) / len(critic_events)
+
+        st.metric(
+            label="📈 Quality Score",
+            value=f"{latest_score:.1f}/100",
+            delta=f"Avg: {avg_score:.1f}",
+            help="Latest quality assessment from Opus 4.1 Critic"
+        )
     else:
-        st.info("Event stream will appear here when tasks are processed.")
+        st.metric(
+            label="📈 Quality Score",
+            value="—",
+            help="No quality assessments yet"
+        )
+
+
+def render_cost_tracking_metric(events: List[Dict[str, Any]]):
+    """Display total cost tracking."""
+    # Extract cost from events
+    cost_events = [e for e in events if e.get("cost_usd") is not None]
+
+    if cost_events:
+        total_cost = sum(e.get("cost_usd", 0) for e in cost_events)
+        recent_cost = sum(e.get("cost_usd", 0) for e in cost_events[-10:])
+
+        st.metric(
+            label="💰 Total Cost",
+            value=f"${total_cost:.4f}",
+            delta=f"Last 10: ${recent_cost:.4f}",
+            help="Cumulative API costs across all providers"
+        )
+    else:
+        st.metric(
+            label="💰 Total Cost",
+            value="$0.0000",
+            help="No costs incurred yet"
+        )
+
+
+def render_active_tasks_metric(events: List[Dict[str, Any]]):
+    """Display active task count."""
+    # Count workflow.started vs workflow.completed
+    started = len([e for e in events if e.get("event_type") == "workflow.started"])
+    completed = len([e for e in events if e.get("event_type") == "workflow.completed"])
+    active = max(0, started - completed)
+
+    st.metric(
+        label="⚡ Active Tasks",
+        value=active,
+        delta=f"{completed} completed",
+        help="Tasks currently in progress"
+    )
+
+
+def render_provider_health_metric(events: List[Dict[str, Any]]):
+    """Display provider health status."""
+    # Check for recent errors/fallbacks
+    recent_events = events[-50:] if len(events) > 50 else events
+
+    error_events = [
+        e for e in recent_events
+        if e.get("event_type") in ["model.error", "model.fallback", "agent.failed"]
+    ]
+
+    if error_events:
+        health = "⚠️ Degraded"
+        color = "orange"
+    else:
+        health = "✅ Healthy"
+        color = "green"
+
+    st.metric(
+        label="🔄 Provider Health",
+        value=health,
+        help="Multi-provider fallback chain status"
+    )
+
+
+def render_cost_breakdown_chart(events: List[Dict[str, Any]]):
+    """Render cost breakdown by model using a bar chart."""
+    # Extract costs by model
+    model_costs = {}
+    for event in events:
+        model = event.get("model", "Unknown")
+        cost = event.get("cost_usd", 0)
+        if cost > 0:
+            if model not in model_costs:
+                model_costs[model] = 0
+            model_costs[model] += cost
+
+    if model_costs:
+        # Create DataFrame for visualization
+        df = pd.DataFrame([
+            {"Model": model, "Cost (USD)": cost}
+            for model, cost in sorted(model_costs.items(), key=lambda x: x[1], reverse=True)
+        ])
+
+        # Display as bar chart
+        st.bar_chart(df.set_index("Model"))
+
+        # Display table
+        with st.expander("View Detailed Breakdown"):
+            st.dataframe(df, use_container_width=True)
+    else:
+        st.info("No cost data available yet. Submit a task to see breakdown.")
+
+
+def render_execution_timeline(events: List[Dict[str, Any]]):
+    """Render execution timeline showing agent activity."""
+    # Filter for relevant events
+    timeline_events = [
+        e for e in events
+        if e.get("event_type") in [
+            "workflow.started", "workflow.completed",
+            "agent.invoked", "agent.completed",
+            "validation.started", "validation.passed", "validation.failed",
+            "critic.started", "critic.completed"
+        ]
+    ]
+
+    if timeline_events:
+        # Create timeline dataframe
+        timeline_data = []
+        for event in timeline_events[-20:]:  # Last 20 events
+            timeline_data.append({
+                "Time": event.get("timestamp", "")[:19],  # Trim to readable format
+                "Component": event.get("component", "Unknown"),
+                "Event": event.get("event_type", ""),
+                "Duration (ms)": event.get("duration_ms", 0)
+            })
+
+        df_timeline = pd.DataFrame(timeline_data)
+        st.dataframe(df_timeline, use_container_width=True, height=300)
+
+        # Visual timeline (using expander for details)
+        with st.expander("View Execution Flow"):
+            for event in timeline_events[-10:]:
+                component = event.get("component", "Unknown")
+                event_type = event.get("event_type", "")
+                duration = event.get("duration_ms", 0)
+
+                # Color code by event type
+                if "completed" in event_type or "passed" in event_type:
+                    st.success(f"✅ {component}: {event_type} ({duration}ms)")
+                elif "failed" in event_type or "error" in event_type:
+                    st.error(f"❌ {component}: {event_type}")
+                elif "started" in event_type or "invoked" in event_type:
+                    st.info(f"🔵 {component}: {event_type}")
+                else:
+                    st.write(f"⚪ {component}: {event_type}")
+    else:
+        st.info("Timeline will populate as tasks execute.")
 
 def render_event_card(event: Dict[str, Any]):
     """Render individual event card with model attribution."""
@@ -969,11 +1193,17 @@ def render_manual_task_builder():
 # ============================================================================
 
 def render_task_history():
-    """Render submitted tasks history."""
+    """
+    Render submitted tasks history with Interactive Refinement (Phase E.2).
+
+    Allows users to provide feedback and trigger refinement loops on completed tasks.
+    """
     st.markdown('<div class="section-header">📚 SUBMITTED TASKS</div>', unsafe_allow_html=True)
 
     if st.session_state.submitted_tasks:
-        for task in reversed(st.session_state.submitted_tasks):  # Most recent first
+        for idx, task in enumerate(reversed(st.session_state.submitted_tasks)):  # Most recent first
+            task_idx = len(st.session_state.submitted_tasks) - idx - 1  # Original index
+
             with st.expander(
                 f"🎯 {task['task_id']} - {task['submitted_at'][:19]}",
                 expanded=False
@@ -985,8 +1215,158 @@ def render_task_history():
 
                 security_icon = "🛡️" if task.get("security_validated") else "⚠️"
                 st.markdown(f"**Security**: {security_icon} {'Validated' if task.get('security_validated') else 'Not Validated'}")
+
+                st.markdown("---")
+
+                # Phase E.2: Interactive Refinement Loop
+                st.markdown("### ✏️ Refine This Output")
+                st.markdown("Provide natural language feedback to iteratively improve the output.")
+
+                feedback_text = st.text_area(
+                    "What would you like improved?",
+                    placeholder="Example: Make it more concise, add more examples, improve clarity...",
+                    key=f"feedback_{task['task_id']}",
+                    height=100
+                )
+
+                refinement_aspects = st.multiselect(
+                    "Focus Areas",
+                    ["Accuracy", "Clarity", "Completeness", "Tone", "Format", "Examples"],
+                    key=f"aspects_{task['task_id']}"
+                )
+
+                col1, col2 = st.columns([3, 1])
+
+                with col2:
+                    if st.button("🔄 Refine", key=f"refine_btn_{task['task_id']}", type="primary"):
+                        if not feedback_text:
+                            st.error("Please provide feedback before refining.")
+                        else:
+                            # Trigger refinement process
+                            with st.spinner("🧠 Converting feedback to structured YAML..."):
+                                structured_feedback = convert_feedback_to_yaml(
+                                    task_data=task,
+                                    feedback=feedback_text,
+                                    aspects=refinement_aspects
+                                )
+
+                            if structured_feedback:
+                                st.success("✅ Feedback converted successfully!")
+                                st.code(structured_feedback, language="yaml")
+
+                                # Store for refinement trigger
+                                st.session_state[f"structured_feedback_{task['task_id']}"] = structured_feedback
+
+                                st.info("""
+                                **Next Steps:**
+                                1. Structured feedback has been generated
+                                2. Use this feedback with RefinementLoop to trigger refinement
+                                3. The refined output will replace the original
+                                """)
+                            else:
+                                st.error("Failed to convert feedback. Please try again.")
+
+                # Display existing structured feedback if available
+                if f"structured_feedback_{task['task_id']}" in st.session_state:
+                    with st.expander("📋 View Structured Feedback"):
+                        st.code(
+                            st.session_state[f"structured_feedback_{task['task_id']}"],
+                            language="yaml"
+                        )
     else:
         st.info("No tasks submitted yet. Use the Agentic Drop Zone or Manual Builder above.")
+
+
+def convert_feedback_to_yaml(
+    task_data: Dict[str, Any],
+    feedback: str,
+    aspects: List[str]
+) -> Optional[str]:
+    """
+    Convert natural language feedback to structured YAML (Phase E.2).
+
+    Uses Sonnet 4.5 agent to transform user feedback into the structured
+    format required by RefinementLoop.
+
+    Args:
+        task_data: Original task data
+        feedback: Natural language feedback from user
+        aspects: Focus areas selected by user
+
+    Returns:
+        Structured YAML feedback string, or None if conversion fails
+    """
+    try:
+        from resilient_agent import ResilientBaseAgent
+        from core.constants import Models
+
+        # Create Sonnet 4.5 agent for feedback conversion
+        converter_agent = ResilientBaseAgent(
+            role="Feedback Conversion Specialist",
+            model=Models.SONNET,  # Sonnet 4.5 for structured output
+            temperature=0.2,
+            timeout=30
+        )
+
+        # Build conversion prompt
+        conversion_prompt = f"""You are a feedback conversion specialist. Your task is to convert natural language feedback into structured YAML format for the RefinementLoop system.
+
+## Original Task
+{task_data.get('task_preview', 'Unknown task')}
+
+## User Feedback (Natural Language)
+{feedback}
+
+## Focus Areas
+{', '.join(aspects) if aspects else 'General improvement'}
+
+## Your Task
+Convert the user's feedback into structured YAML with the following format:
+
+```yaml
+feedback:
+  - priority: CRITICAL|HIGH|MEDIUM|LOW
+    location: "specific area or aspect to improve"
+    issue: "clear description of what needs improvement"
+    action: "specific action to take"
+    code_snippet: "example if applicable (optional)"
+
+regeneration_prompt: |
+  Concise summary of all improvements needed, prioritized from most to least critical.
+  Be specific about what to change and how.
+```
+
+IMPORTANT:
+- Create 3-5 specific feedback items based on the user's input
+- Prioritize based on impact and user emphasis
+- Be concrete and actionable
+- Include the regeneration_prompt that summarizes all fixes
+
+Output ONLY the YAML, no additional text."""
+
+        # Call agent
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        yaml_output = loop.run_until_complete(
+            converter_agent.generate(conversion_prompt, context={})
+        )
+
+        loop.close()
+
+        # Extract YAML from response (may be wrapped in code blocks)
+        import re
+        yaml_match = re.search(r'```yaml\n(.*?)\n```', yaml_output, re.DOTALL)
+        if yaml_match:
+            return yaml_match.group(1)
+        else:
+            # Try without code blocks
+            return yaml_output.strip()
+
+    except Exception as e:
+        st.error(f"Error converting feedback: {e}")
+        return None
 
 # ============================================================================
 # JSON PROMPT GENERATOR
