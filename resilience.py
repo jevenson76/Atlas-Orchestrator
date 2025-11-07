@@ -47,6 +47,9 @@ except ImportError:
     genai = None
     GEMINI_AVAILABLE = False
 
+# xAI support via OpenAI SDK (OpenAI-compatible API)
+XAI_AVAILABLE = OPENAI_AVAILABLE  # xAI uses OpenAI SDK with custom base_url
+
 from core.constants import Models, Limits
 
 # Configure logging
@@ -396,6 +399,9 @@ class ModelFallbackChain:
         # Cross-provider fallbacks (if enabled)
         self.cross_provider_chain = []
         if enable_cross_provider:
+            # Add xAI before Gemini (better pricing than GPT, similar to Sonnet)
+            if XAI_AVAILABLE:
+                self.cross_provider_chain.append(Models.GROK_3)
             if GEMINI_AVAILABLE:
                 self.cross_provider_chain.append('gemini-pro')
             if OPENAI_AVAILABLE:
@@ -447,7 +453,15 @@ class ModelFallbackChain:
             for model in self.cross_provider_chain:
                 breaker = self.circuit_breakers[model]
                 if breaker.get_state() != CircuitState.OPEN:
-                    provider = 'gemini' if 'gemini' in model else 'openai'
+                    # Determine provider from model name
+                    if 'grok' in model.lower():
+                        provider = 'xai'
+                    elif 'gemini' in model.lower():
+                        provider = 'gemini'
+                    elif 'gpt' in model.lower():
+                        provider = 'openai'
+                    else:
+                        provider = 'openai'  # default
                     return (model, provider)
 
         raise Exception(

@@ -19,7 +19,7 @@
 
 ## 🎯 Overview
 
-**ZeroTouch Atlas** is a production-ready, enterprise-grade orchestration platform that coordinates multiple AI agents across providers (Anthropic, Google, OpenAI) with zero-trust security, intelligent routing, and real-time observability.
+**ZeroTouch Atlas** is a production-ready, enterprise-grade orchestration platform that coordinates multiple AI agents across providers (Anthropic, xAI, Google, OpenAI) with zero-trust security, intelligent routing, and real-time observability.
 
 Named after the Titan who held the celestial spheres, **Atlas** represents global knowledge mapping—connecting and orchestrating intelligence across all domains with the same effortless precision.
 
@@ -31,7 +31,7 @@ Traditional multi-agent systems require extensive configuration, lack security b
 - **🌐 Global Intelligence**: RAG topic routing optimizes queries across knowledge domains
 - **📊 Real-Time Observability**: C4 hooks provide complete execution visibility with model attribution
 - **🔄 Closed-Loop Validation**: Automatic UltraThink enforcement for Opus models in validation roles
-- **⚡ Multi-Provider Resilience**: Seamless fallback across Anthropic, Gemini, and OpenAI
+- **⚡ Multi-Provider Resilience**: Seamless fallback across Anthropic, xAI (Grok), Gemini, and OpenAI
 - **📥 Zero-Touch Workflow**: Drag-and-drop task submission with automatic orchestration
 
 ---
@@ -89,9 +89,16 @@ Automatic injection of extended reasoning for:
 
 Resilient fallback chain:
 ```
-Claude Max (Browser Token) → Gemini API → OpenAI API
+Claude (Anthropic) → Grok (xAI) → Gemini (Google) → GPT (OpenAI)
 ```
 
+Supported providers:
+- **Anthropic**: Claude 3 Haiku, Sonnet, Opus, Opus 4.1
+- **xAI**: Grok Beta, Grok 2, Grok 2 Vision
+- **Google**: Gemini Pro
+- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo
+
+Features:
 - Circuit breakers prevent cascade failures
 - Automatic provider selection
 - Cost tracking across providers
@@ -105,6 +112,7 @@ Claude Max (Browser Token) → Gemini API → OpenAI API
 
 - Python 3.11+
 - API keys (optional - works with Claude Max subscription):
+  - `XAI_API_KEY` (Grok)
   - `GOOGLE_API_KEY` (Gemini)
   - `OPENAI_API_KEY` (GPT)
 
@@ -119,6 +127,7 @@ cd Atlas-Orchestrator
 pip install -r requirements.txt
 
 # Configure API keys (optional)
+echo "XAI_API_KEY=your-key" >> ~/.claude/config.json
 echo "GOOGLE_API_KEY=your-key" >> ~/.claude/config.json
 echo "OPENAI_API_KEY=your-key" >> ~/.claude/config.json
 ```
@@ -470,6 +479,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### Built With
 
 - **[Anthropic Claude](https://www.anthropic.com/)**: Opus, Sonnet, and Haiku models
+- **[xAI Grok](https://x.ai/)**: Grok models for additional reasoning capabilities
 - **[Streamlit](https://streamlit.io/)**: Web application framework
 - **[Google Gemini](https://deepmind.google/technologies/gemini/)**: Multi-provider fallback
 - **[OpenAI](https://openai.com/)**: GPT models for additional coverage

@@ -52,11 +52,12 @@ class APIConfig:
     ENV_VAR_NAMES = {
         'anthropic': 'ANTHROPIC_API_KEY',
         'google': 'GOOGLE_API_KEY',
-        'openai': 'OPENAI_API_KEY'
+        'openai': 'OPENAI_API_KEY',
+        'xai': 'XAI_API_KEY'
     }
 
     # Default fallback order (can be customized)
-    DEFAULT_FALLBACK_ORDER = ['anthropic', 'google', 'openai']
+    DEFAULT_FALLBACK_ORDER = ['anthropic', 'xai', 'google', 'openai']
 
     def __new__(cls):
         """Singleton pattern - only one instance exists."""

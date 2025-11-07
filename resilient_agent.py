@@ -37,6 +37,9 @@ except ImportError:
     genai = None
     GEMINI_AVAILABLE = False
 
+# xAI support via OpenAI SDK (OpenAI-compatible API)
+XAI_AVAILABLE = OPENAI_AVAILABLE  # xAI uses OpenAI SDK with custom base_url
+
 from resilience import EnhancedCircuitBreaker, ModelFallbackChain, SecurityValidator
 from agent_system import CostTracker, ExponentialBackoff, ModelPricing
 from core.constants import Models, Limits
@@ -253,6 +256,30 @@ class ResilientBaseAgent:
             self.gemini_available = False
             logger.warning("Gemini SDK not installed. Install with: pip install google-generativeai")
 
+        # xAI (uses OpenAI SDK with custom base_url)
+        if XAI_AVAILABLE:
+            api_key = self.api_config.get_api_key('xai')
+            if api_key:
+                # Import OpenAI here to avoid namespace conflicts
+                from openai import OpenAI
+                self.xai_client = OpenAI(
+                    api_key=api_key,
+                    base_url="https://api.x.ai/v1"
+                )
+                self.xai_available = True
+                logger.debug("xAI client initialized")
+            else:
+                self.xai_client = None
+                self.xai_available = False
+                logger.warning(
+                    "xAI API key not found. Set XAI_API_KEY environment variable "
+                    "or add to ~/.claude/config.json"
+                )
+        else:
+            self.xai_client = None
+            self.xai_available = False
+            logger.warning("xAI requires OpenAI SDK. Install with: pip install openai")
+
         # Log summary of available providers
         available_providers = self.api_config.get_available_providers()
         if available_providers:
@@ -316,8 +343,10 @@ class ResilientBaseAgent:
                 injection_detected, detected_patterns
             )
         else:
+            # Determine provider from model
+            provider = self._get_provider(self.model)
             return self._call_single_provider(
-                prompt, system, self.model, 'anthropic', start_time,
+                prompt, system, self.model, provider, start_time,
                 injection_detected, detected_patterns
             )
 
@@ -582,6 +611,8 @@ class ResilientBaseAgent:
             return self._call_openai(model, prompt, system)
         elif provider == 'gemini':
             return self._call_gemini(model, prompt, system)
+        elif provider == 'xai':
+            return self._call_xai(model, prompt, system)
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
@@ -668,6 +699,35 @@ class ResilientBaseAgent:
             'cost': cost
         }
 
+    def _call_xai(self, model: str, prompt: str, system: str) -> Dict[str, Any]:
+        """Call xAI API (uses OpenAI SDK with custom base URL)."""
+        if not self.xai_available or not self.xai_client:
+            raise Exception("xAI client not available")
+
+        response = self.xai_client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=self.max_tokens,
+            temperature=self.temperature
+        )
+
+        tokens_in = response.usage.prompt_tokens
+        tokens_out = response.usage.completion_tokens
+
+        # Calculate cost using ModelPricing
+        cost = ModelPricing.calculate_cost(model, tokens_in, tokens_out)
+
+        return {
+            'output': response.choices[0].message.content,
+            'tokens_in': tokens_in,
+            'tokens_out': tokens_out,
+            'total_tokens': tokens_in + tokens_out,
+            'cost': cost
+        }
+
     def _get_provider(self, model: str) -> str:
         """Determine provider from model name."""
         if 'claude' in model.lower():
@@ -676,6 +736,8 @@ class ResilientBaseAgent:
             return 'gemini'
         elif 'gpt' in model.lower():
             return 'openai'
+        elif 'grok' in model.lower():
+            return 'xai'
         else:
             return 'anthropic'  # default
 

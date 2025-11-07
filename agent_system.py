@@ -63,6 +63,15 @@ class ModelPricing:
         'sonnet': (3.00, 15.00),
         'opus': (15.00, 75.00),
 
+        # Grok models (xAI)
+        Models.GROK_3: (3.00, 15.00),
+        Models.GROK_2: (2.00, 10.00),
+        Models.GROK_2_VISION: (2.00, 10.00),
+        'grok-3': (3.00, 15.00),
+        'grok-beta': (3.00, 15.00),  # Deprecated
+        'grok-2-1212': (2.00, 10.00),
+        'grok-2-vision-1212': (2.00, 10.00),
+
         # GPT models for reference
         'gpt-4': (30.00, 60.00),
         'gpt-4-turbo': (10.00, 30.00),

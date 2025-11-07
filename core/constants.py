@@ -13,6 +13,12 @@ class Models:
     OPUS = "claude-3-opus-20240229"
     OPUS_4 = "claude-opus-4-20250514"  # Opus 4.1 - Extended thinking with ultrathink
 
+    # Grok models (xAI)
+    GROK_3 = "grok-3"  # Latest general model
+    GROK_2 = "grok-2-1212"
+    GROK_2_VISION = "grok-2-vision-1212"
+    GROK_BETA = "grok-beta"  # Deprecated (kept for backwards compatibility)
+
 
 class Limits:
     """System limits and thresholds."""
