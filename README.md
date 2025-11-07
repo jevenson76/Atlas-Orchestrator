@@ -102,6 +102,12 @@ Sonnet (Proposer) → Opus (Challenger) → Orchestrator (Mediator) → Refined 
 - **Quality Improvement**: Typically +15-30% quality gain through multi-perspective
 - **Zero Cost**: All FREE with Claude Max (Sonnet + Opus dialogue)
 - **Optional Diversity**: Inject Grok for external perspective (~$0.01/task)
+- **Enterprise UI**: Real-time dialogue visualization with professional design
+  - Live turn-by-turn progression
+  - Color-coded role badges (Proposer/Challenger/Orchestrator)
+  - Quality tracking charts and timeline visualization
+  - Consensus status indicators
+  - Zero amateur elements (clean, business-grade aesthetics)
 
 **Example**:
 ```python
@@ -193,11 +199,22 @@ Navigate to **http://localhost:8501**
 
 ### Your First Task
 
+**Simple Task**:
 1. **Select RAG Topics** (optional): Click topic pills in the RAG Topics tab
 2. **Submit via Drop Zone**: Drag a task file or click to browse
 3. **Or use Manual Builder**: Fill in task description, model, temperature
 4. **Monitor Execution**: Watch real-time events in Observability tab
 5. **View History**: Check submitted tasks and results
+
+**Complex Task with Multi-Perspective Dialogue**:
+1. **Navigate to "Multi-Perspective Dialogue" tab**
+2. **Enter complex task description** (e.g., architecture design, system analysis)
+3. **Configure dialogue parameters**:
+   - Max iterations (default: 3)
+   - Quality threshold (default: 85/100)
+   - External perspective (optional Grok integration)
+4. **Watch live dialogue unfold** with enterprise-grade visualization
+5. **Review results** with quality metrics, timeline, and full transcript
 
 ---
 
