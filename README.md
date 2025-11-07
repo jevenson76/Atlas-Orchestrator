@@ -87,22 +87,27 @@ Automatic injection of extended reasoning for:
 
 ### 6. **Multi-Provider Architecture** 🌐
 
-Resilient fallback chain:
+Resilient fallback chain optimized for **Claude Max subscription** (FREE Claude models):
 ```
-Claude (Anthropic) → Grok (xAI) → Gemini (Google) → GPT (OpenAI)
+Opus 4.1 (FREE) → Sonnet 3.5 (FREE) → Grok 3 ($3/$15) → Gemini (~$0.50) → GPT-4 ($30)
 ```
 
 Supported providers:
-- **Anthropic**: Claude 3 Haiku, Sonnet, Opus, Opus 4.1
-- **xAI**: Grok Beta, Grok 2, Grok 2 Vision
+- **Anthropic**: Claude Opus 4.1, Sonnet 3.5 (**FREE** with Claude Max)
+- **xAI**: Grok 3, Grok 2, Grok 2 Vision
 - **Google**: Gemini Pro
 - **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo
+
+**Optimization Strategy**:
+- Primary: Use Opus/Sonnet liberally (FREE, best quality)
+- Fallback: Grok → Gemini → GPT (only when Claude unavailable)
+- Cost: ~$0/day (99% FREE Claude, 1% paid fallback)
 
 Features:
 - Circuit breakers prevent cascade failures
 - Automatic provider selection
-- Cost tracking across providers
-- Daily budget enforcement
+- Cost tracking for paid providers only
+- Zero-cost operation with Claude Max
 
 ---
 

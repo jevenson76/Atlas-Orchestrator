@@ -393,8 +393,9 @@ class ModelFallbackChain:
         self.primary_model = primary_model
         self.enable_cross_provider = enable_cross_provider
 
-        # Define fallback chains
-        self.anthropic_chain = [Models.OPUS, Models.SONNET, Models.HAIKU]
+        # Define fallback chains (Haiku removed per user preference)
+        # Note: With Claude Max subscription, Opus and Sonnet are FREE
+        self.anthropic_chain = [Models.OPUS, Models.SONNET]
 
         # Cross-provider fallbacks (if enabled)
         self.cross_provider_chain = []
