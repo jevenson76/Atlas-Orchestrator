@@ -137,7 +137,61 @@ result = dialogue.execute("Design scalable API architecture...")
 
 ---
 
-### 7. **Multi-Provider Architecture** 🌐
+### 7. **Centralized Model Selection** 🎯
+
+**ModelSelector** provides intelligent, cost-optimized model selection across all orchestrators:
+
+**Tier-Based Architecture**:
+- **Premium** (`claude-opus-4-20250514`): $15/1M tokens - Critical tasks, security audits
+- **Standard** (`claude-sonnet-4-5-20250929`): $3/1M tokens - Default choice (80% cheaper)
+- **Economy** (`claude-haiku-4-20250514`): $0.25/1M tokens - Simple tasks (98% cheaper!)
+
+**Features**:
+- **Task-Aware Selection**: Automatic tier selection based on task type + complexity
+- **Budget Constraints**: Auto-downgrade to stay within cost limits
+- **Provider Failover**: Anthropic → OpenAI fallback chains
+- **Cost Estimation**: Predict costs before execution
+- **Configuration-Driven**: Environment variables or runtime config
+
+**Example**:
+```python
+from utils.model_selector import ModelSelector, ModelSelectionContext
+from utils.model_selector import TaskType, TaskComplexity
+
+selector = ModelSelector()
+
+# High-complexity analysis → Premium tier (Opus)
+context = ModelSelectionContext(
+    task_type=TaskType.ANALYSIS,
+    complexity=TaskComplexity.HIGH
+)
+model = selector.select_model(context)  # Returns: claude-opus-4-20250514
+
+# Simple extraction → Economy tier (Haiku)
+context = ModelSelectionContext(
+    task_type=TaskType.EXTRACTION,
+    complexity=TaskComplexity.LOW
+)
+model = selector.select_model(context)  # Returns: claude-haiku-4-20250514
+```
+
+**Cost Savings Example**:
+```python
+# Before: Opus for everything
+# 10,000 tasks × $0.015 = $150/day
+
+# After: Task-aware selection
+# 3,000 high-complexity × $0.015 = $45
+# 5,000 medium-complexity × $0.003 = $15
+# 2,000 low-complexity × $0.00025 = $0.50
+# Total: $60.50/day (60% savings!)
+```
+
+**Documentation**: See [`docs/MODEL_SELECTOR_GUIDE.md`](docs/MODEL_SELECTOR_GUIDE.md) for complete API reference and migration guide.
+
+---
+
+### 8. **Multi-Provider Architecture** 🌐
 
 Resilient fallback chain optimized for **Claude Max subscription** (FREE Claude models):
 ```

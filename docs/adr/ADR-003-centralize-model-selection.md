@@ -620,16 +620,104 @@ Model Selection Analytics (24h)
 
 ---
 
+## Implementation Details
+
+**Status:** ⏳ In Progress (Phase 2D)
+
+### Files Created
+
+```
+utils/
+├── __init__.py               # Package initialization, exports
+└── model_selector.py         # ModelSelector class (TBD: actual line count)
+```
+
+### Actual Code Reduction
+
+**Estimated:**
+- Before: 600 lines (duplicated across 3 orchestrators)
+- After: 300 lines (centralized) + 150 lines (integration) = 450 lines
+- **Reduction:** 25% (150 lines eliminated)
+
+**Actual:** (To be updated after implementation)
+- Before: TBD lines
+- After: TBD lines
+- **Reduction:** TBD%
+
+### Integration Points
+
+**Where ModelSelector is Used:**
+
+1. **validation/core.py** - ValidationCore uses ModelSelector
+   - Replaces `_select_validator_model()`
+   - Complexity → TaskComplexity enum mapping
+
+2. **critic_orchestrator.py** - CriticOrchestrator uses ModelSelector
+   - Replaces `_select_critic_model()`
+   - Critique type → TaskComplexity mapping
+
+3. **orchestrator.py** - Base Orchestrator uses ModelSelector
+   - Replaces `_select_subagent_model()`
+   - SubAgent model selection centralized
+
+### Lessons Learned
+
+**What Worked:**
+- (To be filled in after implementation)
+
+**What Didn't Work:**
+- (To be filled in after implementation)
+
+**Challenges:**
+- (To be filled in after implementation)
+
+**Surprises:**
+- (To be filled in after implementation)
+
+---
+
+## Future Enhancements
+
+**Potential Improvements:**
+
+1. **Time-Based Pricing**
+   - Use economy tier during off-peak hours (e.g., 12am-6am)
+   - Reduce costs by 30-50% for non-urgent tasks
+
+2. **Provider Quota Management**
+   - Track API usage across providers
+   - Auto-switch to alternate provider when quota nearing limit
+
+3. **A/B Testing Support**
+   - Experiment with different model tiers
+   - Measure quality/cost trade-offs
+
+4. **Quality-Based Auto-Tuning**
+   - Monitor output quality scores
+   - Automatically adjust tier mappings for optimal quality/cost
+
+5. **Multi-Model Ensembles**
+   - Run same task with multiple models
+   - Aggregate results for higher confidence
+
+6. **Cost Prediction Dashboard**
+   - Real-time cost tracking
+   - Budget alerts and recommendations
+
+---
+
 ## Revision History
 
 | Date       | Version | Changes                        | Author              |
 |------------|---------|--------------------------------|---------------------|
 | 2025-11-09 | 1.0     | Initial ADR                    | Documentation Expert |
+| 2025-11-09 | 1.1     | Added implementation tracking  | Documentation Expert |
 
 ---
 
 **Next Steps:**
-1. Review and approve this ADR
-2. Create `utils/model_selector.py` module
-3. Write comprehensive test suite
-4. Begin orchestrator migrations
+1. ✅ ADR approved
+2. ⏳ Backend Specialist creates `utils/model_selector.py`
+3. ⏳ Test Specialist writes comprehensive test suite
+4. ⏳ Backend Specialist migrates orchestrators
+5. ⏳ Documentation Expert updates with actual metrics
