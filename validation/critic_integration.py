@@ -25,6 +25,7 @@ import time
 
 from validation.interfaces import ValidationLevel
 from validation_types import ValidationFinding
+from protocols import CriticProtocol, DependencyFactory, get_default_factory
 
 # Observability
 try:
@@ -42,14 +43,20 @@ class CriticIntegration:
     Combines fast validation with deep critic analysis for comprehensive evaluation.
     """
 
-    def __init__(self, orchestrator):
+    def __init__(
+        self,
+        orchestrator,
+        factory: Optional[DependencyFactory] = None
+    ):
         """
         Initialize CriticIntegration.
 
         Args:
             orchestrator: ValidationOrchestrator instance
+            factory: Dependency factory for protocol-based DI (defaults to global factory)
         """
         self.orchestrator = orchestrator
+        self.factory = factory or get_default_factory()
 
     def validate_with_critics(
         self,
@@ -83,9 +90,6 @@ class CriticIntegration:
 
         level = level or self.orchestrator.default_level
         context = context or {}
-
-        # Lazy import to avoid circular dependency
-        from critic_orchestrator import CriticOrchestrator
 
         start_time = time.time()
 
@@ -137,8 +141,8 @@ class CriticIntegration:
             if self.orchestrator.emitter:
                 self.orchestrator.emitter.start_span("critics")
 
-            # Initialize CriticOrchestrator
-            critic_orchestrator = CriticOrchestrator()
+            # Get CriticOrchestrator via dependency factory (avoids circular import)
+            critic_orchestrator = self.factory.get_critic_orchestrator()
 
             # Run critics with FRESH CONTEXT (code only, no history)
             critic_results = critic_orchestrator.review_code(
