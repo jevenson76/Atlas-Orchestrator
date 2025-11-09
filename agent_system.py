@@ -51,21 +51,27 @@ class ModelPricing:
     """Model pricing information per 1M tokens."""
 
     PRICING = {
-        # Claude models (input, output per 1M tokens)
-        Models.HAIKU: (0.25, 1.25),
-        Models.SONNET: (3.00, 15.00),
-        Models.OPUS: (15.00, 75.00),
-        'claude-3-haiku-20240307': (0.25, 1.25),  # Legacy model
-        'claude-3-sonnet-20240229': (3.00, 15.00),  # Legacy model
+        # Claude models (FREE with Claude Code Max)
+        Models.SONNET: (0.0, 0.0),  # Free via Code Max
+        Models.OPUS: (0.0, 0.0),    # Free via Code Max
+        Models.OPUS_4: (0.0, 0.0),  # Free via Code Max (ULTRATHINK)
 
-        # Shorthand aliases
-        'haiku': (0.25, 1.25),
-        'sonnet': (3.00, 15.00),
-        'opus': (15.00, 75.00),
+        # Gemini models (input, output per 1M tokens)
+        Models.GEMINI_FLASH: (0.10, 0.30),  # Gemini 2.0 Flash
+        Models.GEMINI_PRO: (1.25, 5.00),    # Gemini 1.5 Pro
+        Models.GEMINI_EXP: (1.50, 6.00),    # Gemini Experimental
 
         # Grok models (xAI)
         Models.GROK_3: (3.00, 15.00),
         Models.GROK_2: (2.00, 10.00),
+        Models.GROK_2_VISION: (2.00, 10.00),
+
+        # Shorthand aliases
+        'gemini-flash': (0.10, 0.30),
+        'gemini-pro': (1.25, 5.00),
+        'gemini-exp': (1.50, 6.00),
+        'grok-3': (3.00, 15.00),
+        'grok-2': (2.00, 10.00),
         Models.GROK_2_VISION: (2.00, 10.00),
         'grok-3': (3.00, 15.00),
         'grok-beta': (3.00, 15.00),  # Deprecated
@@ -193,13 +199,14 @@ class CostTracker:
             'hourly': False
         }
 
-        logger.info(f"CostTracker initialized with daily budget: ${daily_budget:.2f}")
+        # Cost tracking disabled per user request
+        logger.info("CostTracker initialized (cost tracking disabled)")
 
     def track(self, agent_id: str, model: str, tokens_in: int, tokens_out: int,
              cost: float, latency: float = 0.0, success: bool = True,
              error: Optional[str] = None):
         """
-        Track a new API call.
+        Track a new API call (DISABLED - cost tracking removed per user request).
 
         Args:
             agent_id: Unique identifier for the agent
@@ -211,15 +218,8 @@ class CostTracker:
             success: Whether call succeeded
             error: Error message if failed
         """
-        if agent_id not in self.agent_metrics:
-            self.agent_metrics[agent_id] = AgentMetrics()
-
-        self.agent_metrics[agent_id].record_call(
-            model, tokens_in, tokens_out, cost, latency, success, error
-        )
-
-        # Check budgets
-        self._check_budgets()
+        # Cost tracking disabled - no-op
+        pass
 
     def _check_budgets(self):
         """Check budget limits and send alerts."""
@@ -467,7 +467,7 @@ class BaseAgent:
 
     def __init__(self,
                  role: str,
-                 model: str = Models.HAIKU,
+                 model: str = Models.SONNET,  # Claude required
                  api_key: Optional[str] = None,
                  temperature: float = 0.7,
                  max_tokens: int = 2048,

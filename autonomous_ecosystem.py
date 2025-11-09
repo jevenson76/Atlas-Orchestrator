@@ -387,7 +387,7 @@ class ModelFallbackStrategy(HealingStrategy):
     def __init__(self):
         super().__init__("Model Fallback", priority=2)
         self.model_hierarchy = [
-            'claude-3-5-haiku-20241022',     # Cheapest
+            'claude-3-5-sonnet-20241022',     # Cheapest
             'claude-3-5-sonnet-20241022',    # Balanced
             'claude-3-opus-20240229'         # Most capable
         ]

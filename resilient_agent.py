@@ -16,12 +16,25 @@ from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
 from dataclasses import dataclass, field
 
+# Initialize logger BEFORE imports that use it
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
-    from anthropic import Anthropic, APIError, APIConnectionError, RateLimitError, APITimeoutError
+    # Try MCP bridge first (uses Claude Code Max subscription)
+    from mcp_bridge import Anthropic
+    from mcp_bridge.anthropic_adapter import APIError, APIConnectionError, RateLimitError, APITimeoutError
     ANTHROPIC_AVAILABLE = True
+    logger.info("✅ Using MCP bridge for Claude Code Max subscription")
 except ImportError:
-    Anthropic = None
-    ANTHROPIC_AVAILABLE = False
+    try:
+        # Fallback to direct API (requires API key)
+        from anthropic import Anthropic, APIError, APIConnectionError, RateLimitError, APITimeoutError
+        ANTHROPIC_AVAILABLE = True
+        logger.warning("⚠️ Using direct Anthropic API (requires API key)")
+    except ImportError:
+        Anthropic = None
+        ANTHROPIC_AVAILABLE = False
 
 try:
     import openai
@@ -128,7 +141,7 @@ class ResilientBaseAgent:
 
     def __init__(self,
                  role: str,
-                 model: str = Models.SONNET,
+                 model: str = Models.SONNET,  # Claude required
                  temperature: float = 0.7,
                  max_tokens: int = 2048,
                  max_retries: int = 3,
@@ -206,21 +219,32 @@ class ResilientBaseAgent:
     def _initialize_clients(self):
         """Initialize API clients for available providers using APIConfig."""
 
-        # Anthropic
+        # Anthropic (via MCP bridge for Claude Code Max subscription)
         if ANTHROPIC_AVAILABLE:
-            api_key = self.api_config.get_api_key('anthropic')
-            if api_key:
-                self.anthropic_client = Anthropic(api_key=api_key)
-                logger.debug("Anthropic client initialized")
-            else:
-                self.anthropic_client = None
-                logger.warning(
-                    "Anthropic API key not found. Set ANTHROPIC_API_KEY environment variable "
-                    "or add to ~/.claude/config.json"
-                )
+            try:
+                # Try MCP bridge first (no API key needed - uses subscription)
+                self.anthropic_client = Anthropic()
+                logger.info("✅ Anthropic client initialized via MCP bridge (Claude Code Max)")
+            except Exception as e:
+                # Fallback to direct API if MCP bridge fails
+                api_key = self.api_config.get_api_key('anthropic')
+                if api_key:
+                    try:
+                        self.anthropic_client = Anthropic(api_key=api_key)
+                        logger.info("Anthropic client initialized with API key")
+                    except Exception as e2:
+                        self.anthropic_client = None
+                        logger.error(f"Failed to initialize Anthropic client: {e2}")
+                else:
+                    self.anthropic_client = None
+                    logger.warning(
+                        "Anthropic MCP bridge failed and no API key found.\n"
+                        "To use Claude Code Max subscription: run 'claude login'\n"
+                        "To use API: Set ANTHROPIC_API_KEY environment variable"
+                    )
         else:
             self.anthropic_client = None
-            logger.warning("Anthropic SDK not installed. Install with: pip install anthropic")
+            logger.warning("Anthropic not available. Install MCP bridge or: pip install anthropic")
 
         # OpenAI
         if OPENAI_AVAILABLE:
@@ -635,8 +659,12 @@ class ResilientBaseAgent:
             response.usage.output_tokens
         )
 
+        # Extract text from content (handle both dict and object formats)
+        content_block = response.content[0]
+        output_text = content_block['text'] if isinstance(content_block, dict) else content_block.text
+
         return {
-            'output': response.content[0].text,
+            'output': output_text,
             'tokens_in': response.usage.input_tokens,
             'tokens_out': response.usage.output_tokens,
             'total_tokens': response.usage.input_tokens + response.usage.output_tokens,
@@ -734,12 +762,12 @@ class ResilientBaseAgent:
             return 'anthropic'
         elif 'gemini' in model.lower():
             return 'gemini'
-        elif 'gpt' in model.lower():
-            return 'openai'
         elif 'grok' in model.lower():
             return 'xai'
+        elif 'gpt' in model.lower():
+            return 'openai'
         else:
-            return 'anthropic'  # default
+            return 'anthropic'  # default to Claude (authentication required)
 
     def _build_system_prompt(self, context: Optional[Dict[str, Any]]) -> str:
         """

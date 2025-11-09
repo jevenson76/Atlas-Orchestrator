@@ -1,0 +1,39 @@
+======================================
+EXECUTE INSTALLATION - 2 SIMPLE STEPS
+======================================
+
+STEP 1: Copy this command
+--------------------------
+explorer \\wsl$\Ubuntu\home\jevenson\.claude\lib
+
+
+STEP 2: Paste and run
+---------------------
+1. Press Win+R (Run dialog)
+2. Paste the command
+3. Press Enter
+4. Double-click: INSTALL.bat
+
+That's it! Your shortcuts will be created.
+
+======================================
+ALTERNATIVE: PowerShell Method
+======================================
+
+Copy and paste this into PowerShell:
+
+cd \\wsl$\Ubuntu\home\jevenson\.claude\lib; .\install-launcher.ps1
+
+======================================
+WHAT WILL HAPPEN
+======================================
+
+After running INSTALL.bat:
+
+✓ Desktop shortcut created
+✓ Start Menu entry added  
+✓ Quick Access folder created
+
+You can then double-click the desktop icon to launch the demo!
+
+======================================

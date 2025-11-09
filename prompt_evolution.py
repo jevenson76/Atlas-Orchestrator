@@ -338,7 +338,7 @@ class FitnessEvaluator:
     """Evaluates prompt fitness across multiple dimensions."""
 
     def __init__(self, base_agent: Optional[BaseAgent] = None):
-        self.base_agent = base_agent or BaseAgent(role="evaluator", model="claude-3-5-haiku-20241022")
+        self.base_agent = base_agent or BaseAgent(role="evaluator", model="claude-3-5-sonnet-20241022")
 
     async def evaluate(
         self,

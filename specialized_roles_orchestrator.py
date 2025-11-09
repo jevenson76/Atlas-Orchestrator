@@ -869,11 +869,11 @@ Provide the COMPLETE revised output (not just the changes).
         if "haiku" in current_model.lower():
             return "claude-3-5-sonnet-20241022"
         elif "sonnet" in current_model.lower():
-            return "claude-3-opus-20240229"
+            return "claude-opus-4-20250514"  # Escalate to Opus 4.1
         elif "opus" in current_model.lower():
             return "gpt-4"  # Try GPT-4 if Opus already used
         else:
-            return "claude-3-opus-20240229"  # Default to Opus
+            return "claude-opus-4-20250514"  # Default to Opus 4.1
 
     def _extract_quality_score(self, reviewer_output: str) -> Optional[int]:
         """Extract overall quality score from reviewer output."""

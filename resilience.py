@@ -388,25 +388,24 @@ class ModelFallbackChain:
 
         Args:
             primary_model: Preferred model to use
-            enable_cross_provider: Allow fallback to other providers (Gemini, OpenAI)
+            enable_cross_provider: Allow fallback to other providers
         """
         self.primary_model = primary_model
         self.enable_cross_provider = enable_cross_provider
 
-        # Define fallback chains (Haiku removed per user preference)
-        # Note: With Claude Max subscription, Opus and Sonnet are FREE
-        self.anthropic_chain = [Models.OPUS, Models.SONNET]
+        # Primary fallback chain (Claude models - authentication required)
+        self.anthropic_chain = [Models.OPUS_4, Models.SONNET, Models.OPUS]
 
-        # Cross-provider fallbacks (if enabled)
+        # Cross-provider fallbacks (if enabled and auth fails)
         self.cross_provider_chain = []
         if enable_cross_provider:
-            # Add xAI before Gemini (better pricing than GPT, similar to Sonnet)
-            if XAI_AVAILABLE:
-                self.cross_provider_chain.append(Models.GROK_3)
+            # Add Gemini, xAI, and OpenAI as fallbacks
             if GEMINI_AVAILABLE:
-                self.cross_provider_chain.append('gemini-pro')
+                self.cross_provider_chain.extend([Models.GEMINI_PRO, Models.GEMINI_EXP, Models.GEMINI_FLASH])
+            if XAI_AVAILABLE:
+                self.cross_provider_chain.extend([Models.GROK_3, Models.GROK_2])
             if OPENAI_AVAILABLE:
-                self.cross_provider_chain.extend(['gpt-4', 'gpt-3.5-turbo'])
+                self.cross_provider_chain.extend(['gpt-4o', 'gpt-4-turbo'])
 
         # Per-model circuit breakers
         self.circuit_breakers: Dict[str, EnhancedCircuitBreaker] = {}
@@ -443,7 +442,7 @@ class ModelFallbackChain:
         Raises:
             Exception: No available models
         """
-        # Try Anthropic chain first
+        # Try Anthropic chain first (authentication required)
         for model in self.anthropic_chain:
             breaker = self.circuit_breakers[model]
             if breaker.get_state() != CircuitState.OPEN:

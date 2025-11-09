@@ -43,7 +43,7 @@ PROMPT_CHAIN_COGNITIVE = {
     "perception_layer": [
         {
             "agent": "environment_monitor",
-            "model": "claude-3-5-haiku-20241022",  # Fast for monitoring
+            "model": "claude-3-5-sonnet-20241022",  # Fast for monitoring
             "prompt": """Scan the current development environment:
 
             System Resources:
@@ -88,7 +88,7 @@ PROMPT_CHAIN_COGNITIVE = {
         },
         {
             "agent": "context_analyzer",
-            "model": "claude-3-5-haiku-20241022",
+            "model": "claude-3-5-sonnet-20241022",
             "prompt": """Analyze project state from development context:
 
             Git Status:
@@ -303,7 +303,7 @@ PROMPT_CHAIN_COGNITIVE = {
     "memory_systems": [
         {
             "agent": "episodic_memory",
-            "model": "claude-3-5-haiku-20241022",
+            "model": "claude-3-5-sonnet-20241022",
             "prompt": """Record this development episode in episodic memory:
 
             Episode Context:
@@ -649,12 +649,12 @@ class PerceptionLayer:
     def __init__(self):
         self.environment_monitor = BaseAgent(
             role="Environment Monitor",
-            model="claude-3-5-haiku-20241022",
+            model="claude-3-5-sonnet-20241022",
             temperature=0.1
         )
         self.context_analyzer = BaseAgent(
             role="Context Analyzer",
-            model="claude-3-5-haiku-20241022",
+            model="claude-3-5-sonnet-20241022",
             temperature=0.2
         )
 

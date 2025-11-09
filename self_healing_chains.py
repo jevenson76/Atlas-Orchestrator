@@ -35,7 +35,7 @@ PROMPT_CHAIN_SELF_HEALING = [
     {
         "role": "monitor",
         "agent": "monitoring-specialist",
-        "model": "claude-3-5-haiku-20241022",  # Fast for monitoring
+        "model": "claude-3-5-sonnet-20241022",  # Balanced model
         "prompt": """Analyze the last 100 API responses and identify patterns:
 
         Input data: {api_responses}
@@ -173,7 +173,7 @@ PROMPT_CHAIN_SELF_HEALING = [
                     "action": "switch_model",
                     "params": {
                         "from": "claude-3-5-sonnet",
-                        "to": "claude-3-5-haiku",
+                        "to": "claude-3-5-sonnet-20241022",
                         "agents": ["all_non_critical"]
                     },
                     "script": "await agent_manager.switch_models(...)"
@@ -195,7 +195,7 @@ PROMPT_CHAIN_SELF_HEALING = [
     {
         "role": "validator",
         "agent": "validation-specialist",
-        "model": "claude-3-5-haiku-20241022",  # Fast validation
+        "model": "claude-3-5-sonnet-20241022",  # Balanced model
         "prompt": """Validate healing actions and their effectiveness:
 
         Healing actions taken: {healing_actions}
@@ -373,7 +373,7 @@ class SelfHealingChainExecutor:
         """Create specialized monitoring agent."""
         return BaseAgent(
             role="System Monitor",
-            model="claude-3-5-haiku-20241022",  # Fast, cheap
+            model="claude-3-5-sonnet-20241022",  # Balanced model
             temperature=0.1,  # Deterministic for monitoring
             max_retries=1  # Don't retry monitoring
         )
@@ -400,7 +400,7 @@ class SelfHealingChainExecutor:
         """Create specialized validation agent."""
         return BaseAgent(
             role="Healing Validator",
-            model="claude-3-5-haiku-20241022",  # Fast validation
+            model="claude-3-5-sonnet-20241022",  # Balanced model
             temperature=0.1,
             max_retries=1
         )
@@ -583,10 +583,10 @@ class SelfHealingChainExecutor:
                     action_type="switch_model",
                     params={
                         "from": "claude-3-5-sonnet-20241022",
-                        "to": "claude-3-5-haiku-20241022",
+                        "to": "claude-3-5-sonnet-20241022",
                         "agents": ["all_non_critical"]
                     },
-                    script="await agent_manager.switch_models('all_non_critical', 'claude-3-5-haiku-20241022')",
+                    script="await agent_manager.switch_models('all_non_critical', 'claude-3-5-sonnet-20241022')",
                     priority=1
                 ))
 

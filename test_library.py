@@ -22,7 +22,7 @@ print("\nTesting BaseAgent...")
 try:
     agent = BaseAgent(
         role="Test Agent",
-        model="claude-3-5-haiku-20241022"
+        model="claude-3-5-sonnet-20241022"
     )
     print(f"✅ BaseAgent created: {agent.role}")
 except Exception as e:
@@ -32,7 +32,7 @@ except Exception as e:
 print("\nTesting CostTracker...")
 try:
     tracker = CostTracker(daily_budget=10.0)
-    tracker.track("test_agent", "claude-3-5-haiku-20241022", 1000, 500, 0.001)
+    tracker.track("test_agent", "claude-3-5-sonnet-20241022", 1000, 500, 0.001)
     report = tracker.get_report()
     print(f"✅ CostTracker working: ${report['spent_today']:.6f} spent")
 except Exception as e:

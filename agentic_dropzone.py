@@ -24,6 +24,7 @@ ZERO HUMAN INTERVENTION!
 """
 
 import asyncio
+import nest_asyncio
 import json
 from pathlib import Path
 from datetime import datetime
@@ -31,6 +32,9 @@ from typing import Dict, Optional, Any
 import logging
 import time
 import traceback
+
+# Fix nested event loop issues
+nest_asyncio.apply()
 
 # Observability
 try:
@@ -338,18 +342,115 @@ class AgenticDropZone:
             self.tasks_failed += 1
 
     def _read_task_file(self, filepath: Path) -> Dict:
-        """Parse task JSON file"""
+        """Parse task JSON file - handles both simple tasks and Atlas prompt format"""
         try:
             with open(filepath, 'r') as f:
                 task_data = json.load(f)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON in task file: {e}")
 
-        # Validate required fields
-        if 'task' not in task_data:
-            raise ValueError("Missing required field: 'task'")
+        # Check if this is an Atlas prompt format (not simple task format)
+        if 'task' not in task_data and 'user_prompt' in task_data:
+            logger.info("📝 Detected Atlas prompt format - converting to task")
 
-        # Set defaults
+            # Extract components
+            system_msg = task_data.get('system_message', '')
+            user_prompt = task_data.get('user_prompt', {})
+            instructions = user_prompt.get('instructions', {})
+            source_files_config = user_prompt.get('source_files', {})
+            task_rules = user_prompt.get('task_generation_rules', [])
+
+            # Read source files
+            directory = source_files_config.get('directory', '')
+            primary_drivers = source_files_config.get('primary_drivers', [])
+
+            # Convert Windows path to WSL path if needed
+            if directory.startswith('C:\\') or directory.startswith('C:/'):
+                wsl_path = directory.replace('C:\\', '/mnt/c/').replace('C:/', '/mnt/c/').replace('\\', '/')
+                logger.info(f"📁 Converted Windows path to WSL: {wsl_path}")
+                directory = wsl_path
+
+            # Read ALL files from the directory (not just primary_drivers)
+            files_content = {}
+            directory_path = Path(directory)
+
+            if directory_path.exists() and directory_path.is_dir():
+                logger.info(f"📂 Reading ALL files from: {directory}")
+
+                # Get all readable files (txt, md, csv, json, html, pdf)
+                text_extensions = {'.txt', '.md', '.csv', '.json', '.html'}
+
+                for file_path in directory_path.iterdir():
+                    if not file_path.is_file():
+                        continue
+
+                    suffix = file_path.suffix.lower()
+
+                    # Handle text files
+                    if suffix in text_extensions:
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                files_content[file_path.name] = content
+                                logger.info(f"   ✓ Loaded: {file_path.name} ({len(content):,} chars)")
+                        except Exception as e:
+                            logger.warning(f"   ⚠ Couldn't read {file_path.name}: {e}")
+
+                    # Handle PDF files
+                    elif suffix == '.pdf':
+                        try:
+                            import PyPDF2
+                            with open(file_path, 'rb') as f:
+                                pdf_reader = PyPDF2.PdfReader(f)
+                                text_parts = []
+                                for page in pdf_reader.pages:
+                                    text_parts.append(page.extract_text())
+                                content = '\n\n'.join(text_parts)
+                                files_content[file_path.name] = content
+                                logger.info(f"   ✓ Loaded PDF: {file_path.name} ({len(content):,} chars, {len(pdf_reader.pages)} pages)")
+                        except ImportError:
+                            logger.warning(f"   ⚠ PyPDF2 not installed - skipping {file_path.name}")
+                        except Exception as e:
+                            logger.warning(f"   ⚠ Couldn't read PDF {file_path.name}: {e}")
+
+                logger.info(f"📊 Total files loaded: {len(files_content)}")
+            else:
+                logger.warning(f"   ⚠ Directory not found: {directory_path}")
+
+            # Build comprehensive task from prompt
+            task_description = f"""{system_msg}
+
+SOURCE FILES CONTENT:
+{json.dumps({k: v[:5000] for k, v in files_content.items()}, indent=2)}
+
+INSTRUCTIONS:
+{json.dumps(instructions, indent=2)}
+
+TASK GENERATION RULES:
+{json.dumps(task_rules, indent=2)}
+
+Generate the requested output following the exact format specified in the instructions."""
+
+            # Convert to standard task format
+            converted_task = {
+                'task': task_description,
+                'workflow': 'auto',  # Let MasterOrchestrator decide
+                'context': {
+                    'language': 'csv',
+                    'quality_target': 90,  # High quality for document processing
+                    'files_content': files_content,
+                    'original_prompt': task_data
+                },
+                'priority': 'normal'
+            }
+
+            return converted_task
+
+        # Validate simple task format
+        if 'task' not in task_data:
+            raise ValueError("Missing required field: 'task' (and not Atlas prompt format)")
+
+        # Set defaults for simple tasks
         task_data.setdefault('workflow', 'auto')
         task_data.setdefault('context', {})
         task_data.setdefault('priority', 'normal')

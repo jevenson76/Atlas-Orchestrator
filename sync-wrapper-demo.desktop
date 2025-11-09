@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Sync Wrapper Demo
+GenericName=Async to Sync Converter Demo
+Comment=Interactive demo of run_async_safely() sync wrapper
+Exec=/usr/bin/python3 /home/jevenson/.claude/lib/demo_sync_wrapper.py
+Icon=/home/jevenson/.claude/lib/sync_wrapper_icon
+Terminal=false
+Categories=Development;Utility;Education;
+StartupNotify=true
+Keywords=async;sync;python;demo;wrapper;resilience;
+MimeType=
+Actions=Docs;Test;
+
+[Desktop Action Docs]
+Name=Open Documentation
+Exec=xdg-open /home/jevenson/.claude/lib/DEMO_README.md
+
+[Desktop Action Test]
+Name=Run Tests
+Exec=/usr/bin/python3 /home/jevenson/.claude/lib/test_event_loop_fixes.py

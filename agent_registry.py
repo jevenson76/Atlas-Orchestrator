@@ -69,7 +69,6 @@ class ModelTier(str, Enum):
            - Architecture, critique, complex decisions
            - ~$15 per 1M input tokens, ~$75 per 1M output tokens
     """
-    HAIKU = "claude-3-5-haiku-20241022"
     SONNET = "claude-3-5-sonnet-20241022"
     OPUS = "claude-opus-4-20250514"  # Updated to Opus 4 for C3 critic system
 

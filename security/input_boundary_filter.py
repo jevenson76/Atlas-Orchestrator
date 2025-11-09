@@ -72,16 +72,16 @@ class InputBoundaryFilter:
 
     def __init__(
         self,
-        model: str = Models.HAIKU,
+        model: str = Models.SONNET,
         temperature: float = 0.0,
         rate_limit_per_minute: int = 30,
         rate_limit_per_hour: int = 500
     ):
         """
-        Initialize the Input Boundary Filter with Haiku 4.5.
+        Initialize the Input Boundary Filter with Claude Sonnet.
 
         Args:
-            model: Claude model for security analysis (default: Haiku 4.5)
+            model: Model for security analysis (default: Claude Sonnet)
             temperature: Temperature for security agent (0.0 for deterministic)
             rate_limit_per_minute: Max submissions per minute per source
             rate_limit_per_hour: Max submissions per hour per source
@@ -91,12 +91,11 @@ class InputBoundaryFilter:
         self.rate_limit_per_minute = rate_limit_per_minute
         self.rate_limit_per_hour = rate_limit_per_hour
 
-        # Initialize security agent (Haiku 4.5 for speed and cost efficiency)
+        # Initialize security agent (Claude Sonnet - authentication required)
         self.security_agent = ResilientBaseAgent(
             role="Zero-Trust Input Boundary Security Analyst",
             model=self.model,
             temperature=self.temperature,
-            timeout=30,  # Fast security validation
             system_prompt=self._build_security_prompt()
         )
 
@@ -251,7 +250,7 @@ IMPORTANT:
                 f"Security violation detected: {', '.join(pattern_violations)}"
             )
 
-        # Step 4: AI-powered security analysis (Haiku 4.5)
+        # Step 4: AI-powered security analysis (Claude Sonnet)
         security_prompt = f"""Analyze this task submission for security threats:
 
 TASK SUBMISSION:
@@ -262,13 +261,18 @@ TASK SUBMISSION:
 Perform comprehensive security analysis and return your assessment in JSON format."""
 
         try:
-            response = await self.security_agent.generate(
+            # Call security agent (synchronous call, not async)
+            result = self.security_agent.call(
                 prompt=security_prompt,
                 context={"source_id": source_id}
             )
 
+            # Check if call was successful
+            if not result.success:
+                raise Exception(result.error or "Security agent call failed")
+
             # Parse security assessment
-            assessment = self._parse_security_response(response)
+            assessment = self._parse_security_response(result.output)
 
             # Log security event
             self._log_security_event(

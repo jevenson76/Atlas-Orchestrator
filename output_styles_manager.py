@@ -155,6 +155,10 @@ class OutputStylesManager:
             return 0
 
         for style_file in self.styles_dir.glob("*.md"):
+            # Skip README and documentation files
+            if style_file.name.upper() in ['README.MD', 'README.md', 'README.MD']:
+                continue
+
             try:
                 style = self._parse_markdown_file(style_file)
                 self.styles_cache[style.name] = style

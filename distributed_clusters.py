@@ -120,7 +120,7 @@ PROMPT_CHAIN_DISTRIBUTED = [
     },
     {
         "role": "node_executor",
-        "model": "claude-3-5-haiku-20241022",  # Fast for execution
+        "model": "claude-3-5-sonnet-20241022",  # Fast for execution
         "prompt": """Execute assigned work package on Node {node_id}:
 
         Node capabilities: {node_specs}
@@ -408,7 +408,7 @@ class ClusterNode:
     A single node in the distributed cluster.
     """
 
-    def __init__(self, node_id: str, model: str = "claude-3-5-haiku-20241022"):
+    def __init__(self, node_id: str, model: str = "claude-3-5-sonnet-20241022"):
         self.node_id = node_id
         self.model = model
         self.agent = BaseAgent(
@@ -444,7 +444,7 @@ class ClusterNode:
     def _get_cost_per_token(self, model: str) -> float:
         """Get cost per token for model."""
         costs = {
-            "claude-3-5-haiku-20241022": 0.00025,
+            "claude-3-5-sonnet-20241022": 0.00025,
             "claude-3-5-sonnet-20241022": 0.003,
             "claude-3-opus-20240229": 0.015
         }
@@ -976,7 +976,7 @@ class DistributedCluster:
     def _initialize_nodes(self, num_nodes: int):
         """Initialize cluster nodes with varied capabilities."""
         models = [
-            "claude-3-5-haiku-20241022",  # Fast, cheap
+            "claude-3-5-sonnet-20241022",  # Fast, cheap
             "claude-3-5-sonnet-20241022",  # Balanced
         ]
 
@@ -1145,7 +1145,7 @@ class DistributedCluster:
             # Add nodes
             for i in range(current_size, target_size):
                 node_id = f"node_{i:03d}"
-                model = "claude-3-5-haiku-20241022"  # Use cheap model for new nodes
+                model = "claude-3-5-sonnet-20241022"  # Use cheap model for new nodes
                 node = ClusterNode(node_id, model)
                 self.nodes[node_id] = node
                 self.message_bus.register_agent(node_id)

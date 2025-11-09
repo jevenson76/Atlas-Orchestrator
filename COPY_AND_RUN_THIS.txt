@@ -1,0 +1,29 @@
+================================
+COPY THIS ENTIRE LINE:
+================================
+
+\\wsl.localhost\Ubuntu\home\jevenson\.claude\lib\CLICK_TO_INSTALL.bat
+
+================================
+THEN:
+================================
+
+1. Press Win+R (opens Run dialog)
+2. Press Ctrl+V (paste the line)
+3. Press Enter (executes installer)
+
+The installer will:
+- Create desktop shortcut
+- Add Start Menu entry
+- Create Quick Access folder
+- Show success message
+
+================================
+ALTERNATIVE METHOD:
+================================
+
+If the above doesn't work, copy this into PowerShell:
+
+Start-Process "\\wsl.localhost\Ubuntu\home\jevenson\.claude\lib\CLICK_TO_INSTALL.bat"
+
+================================

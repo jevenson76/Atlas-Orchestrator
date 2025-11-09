@@ -50,7 +50,7 @@ class SubAgent(BaseAgent):
 
     def __init__(self,
                  role: str,
-                 model: str = 'claude-3-5-haiku-20241022',
+                 model: str = 'claude-3-5-sonnet-20241022',
                  tools: Optional[List[str]] = None,
                  dependencies: Optional[Set[str]] = None,
                  required: bool = True,

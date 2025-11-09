@@ -27,7 +27,7 @@ print(f'✓ ExponentialBackoff created: base_delay={backoff.base_delay}s')
 metrics = AgentMetrics()
 print(f'✓ AgentMetrics created: {metrics.total_calls} calls')
 
-cost = ModelPricing.calculate_cost('claude-3-5-haiku-20241022', 1000, 500)
+cost = ModelPricing.calculate_cost('claude-3-5-sonnet-20241022', 1000, 500)
 print(f'✓ ModelPricing calculated: ${cost} for 1500 tokens')
 
 # Test orchestrator components

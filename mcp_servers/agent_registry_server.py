@@ -490,7 +490,7 @@ class AgentRegistryServer(BaseMCPServer):
     def _get_model_tier_value(self, tier: str) -> str:
         """Get model tier enum value from string."""
         tier_map = {
-            "haiku": "claude-3-5-haiku-20241022",
+            "haiku": "claude-3-5-sonnet-20241022",
             "sonnet": "claude-3-5-sonnet-20241022",
             "opus": "claude-3-opus-20240229"
         }

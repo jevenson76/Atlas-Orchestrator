@@ -30,12 +30,16 @@ Version: 1.0.0 (Production)
 import streamlit as st
 import json
 import asyncio
+import nest_asyncio
 import time
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import pandas as pd
 import base64
+
+# Fix for "event loop already running" error in Streamlit
+nest_asyncio.apply()
 
 # ============================================================================
 # IMPORTS - Security & Core
@@ -47,6 +51,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from security import get_security_filter, SecurityViolation
 from dialogue_ui import EnterpriseDialogueUI
 from multi_perspective import MultiPerspectiveDialogue, detect_task_complexity, DialogueResult
+from atlas_master_bridge import AtlasMasterBridge
 
 # ============================================================================
 # CONFIGURATION
@@ -89,12 +94,11 @@ WORKFLOW_OPTIONS = {
     "progressive": "📈 Progressive Enhancement (Simple → Advanced iterative refinement)"
 }
 
-# Model stack
+# Model stack (Claude required - authentication needed)
 MODEL_OPTIONS = {
     "claude-sonnet-4": "Claude Sonnet 4.5 (Default - Balanced performance)",
-    "claude-haiku-3": "Claude Haiku 4.5 (Fast - Cost-effective)",
     "claude-opus-3": "Claude Opus 3 (Premium - Deep reasoning)",
-    "claude-opus-4": "Claude Opus 4.1 (Ultimate - UltraThink enabled)"
+    "claude-opus-4": "Claude Opus 4.1 (Ultimate - ULTRATHINK enabled)"
 }
 
 # ============================================================================
@@ -120,13 +124,22 @@ if "selected_rag_topics" not in st.session_state:
     st.session_state.selected_rag_topics = []
 
 if "security_enabled" not in st.session_state:
-    st.session_state.security_enabled = True
+    st.session_state.security_enabled = False  # Disabled by user request
 
 if "dialogue_history" not in st.session_state:
     st.session_state.dialogue_history = []
 
 if "active_dialogue" not in st.session_state:
     st.session_state.active_dialogue = None
+
+if "processing_mode" not in st.session_state:
+    st.session_state.processing_mode = "direct"  # "direct" or "background"
+
+if "current_task_progress" not in st.session_state:
+    st.session_state.current_task_progress = []
+
+if "output_save_path" not in st.session_state:
+    st.session_state.output_save_path = str(Path.home() / "Downloads")
 
 # ============================================================================
 # CUSTOM CSS & BRANDING
@@ -715,6 +728,32 @@ def render_adz_dropzone():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
+def emit_event(agent: str, action: str, model: str = "Atlas UI", provider: str = "ZeroTouch"):
+    """
+    Emit an event to the stream file for real-time activity tracking.
+
+    Args:
+        agent: The component/agent performing the action
+        action: Description of the action
+        model: Model being used (default: Atlas UI)
+        provider: Provider name (default: ZeroTouch)
+    """
+    event = {
+        "timestamp": datetime.now().isoformat(),
+        "agent": agent,
+        "action": action,
+        "model": model,
+        "provider": provider
+    }
+
+    # Ensure events directory exists
+    EVENTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Append event to stream file
+    with open(STREAM_FILE, 'a') as f:
+        f.write(json.dumps(event) + '\n')
+
+
 def submit_task_to_adz(task_data: Dict[str, Any]) -> str:
     """
     Submit validated task to Agentic Drop Zone.
@@ -733,9 +772,26 @@ def submit_task_to_adz(task_data: Dict[str, Any]) -> str:
     task_data["task_id"] = task_id
     task_data["security_validated"] = st.session_state.security_enabled
 
+    # Emit event: Task received
+    model = task_data.get("model", "claude-code-experimental-v1")
+    emit_event(
+        agent="Atlas UI",
+        action=f"Task {task_id} received and validated",
+        model=model,
+        provider="ZeroTouch Atlas"
+    )
+
     # Write to dropzone
     with open(task_file, 'w') as f:
         json.dump(task_data, f, indent=2)
+
+    # Emit event: Task saved to dropzone
+    emit_event(
+        agent="Task Manager",
+        action=f"Task {task_id} saved to dropzone/tasks/",
+        model=model,
+        provider="ADZ"
+    )
 
     # Add to session history
     st.session_state.submitted_tasks.append({
@@ -745,6 +801,14 @@ def submit_task_to_adz(task_data: Dict[str, Any]) -> str:
         "rag_topics": st.session_state.selected_rag_topics.copy() if st.session_state.selected_rag_topics else [],
         "security_validated": st.session_state.security_enabled
     })
+
+    # Emit event: Task queued for processing
+    emit_event(
+        agent="ADZ Daemon",
+        action=f"Task {task_id} queued for processing (waiting for daemon)",
+        model=model,
+        provider="Background Processor"
+    )
 
     return task_id
 
@@ -915,26 +979,9 @@ def render_quality_scores_metric(events: List[Dict[str, Any]]):
 
 
 def render_cost_tracking_metric(events: List[Dict[str, Any]]):
-    """Display total cost tracking."""
-    # Extract cost from events
-    cost_events = [e for e in events if e.get("cost_usd") is not None]
-
-    if cost_events:
-        total_cost = sum(e.get("cost_usd", 0) for e in cost_events)
-        recent_cost = sum(e.get("cost_usd", 0) for e in cost_events[-10:])
-
-        st.metric(
-            label="💰 Total Cost",
-            value=f"${total_cost:.4f}",
-            delta=f"Last 10: ${recent_cost:.4f}",
-            help="Cumulative API costs across all providers"
-        )
-    else:
-        st.metric(
-            label="💰 Total Cost",
-            value="$0.0000",
-            help="No costs incurred yet"
-        )
+    """Display total cost tracking (DISABLED per user request)."""
+    # Cost tracking disabled - no display
+    pass
 
 
 def render_active_tasks_metric(events: List[Dict[str, Any]]):
@@ -977,32 +1024,9 @@ def render_provider_health_metric(events: List[Dict[str, Any]]):
 
 
 def render_cost_breakdown_chart(events: List[Dict[str, Any]]):
-    """Render cost breakdown by model using a bar chart."""
-    # Extract costs by model
-    model_costs = {}
-    for event in events:
-        model = event.get("model", "Unknown")
-        cost = event.get("cost_usd", 0)
-        if cost > 0:
-            if model not in model_costs:
-                model_costs[model] = 0
-            model_costs[model] += cost
-
-    if model_costs:
-        # Create DataFrame for visualization
-        df = pd.DataFrame([
-            {"Model": model, "Cost (USD)": cost}
-            for model, cost in sorted(model_costs.items(), key=lambda x: x[1], reverse=True)
-        ])
-
-        # Display as bar chart
-        st.bar_chart(df.set_index("Model"))
-
-        # Display table
-        with st.expander("View Detailed Breakdown"):
-            st.dataframe(df, use_container_width=True)
-    else:
-        st.info("No cost data available yet. Submit a task to see breakdown.")
+    """Render cost breakdown by model using a bar chart (DISABLED per user request)."""
+    # Cost tracking disabled - no display
+    pass
 
 
 def render_execution_timeline(events: List[Dict[str, Any]]):
@@ -1030,7 +1054,7 @@ def render_execution_timeline(events: List[Dict[str, Any]]):
             })
 
         df_timeline = pd.DataFrame(timeline_data)
-        st.dataframe(df_timeline, use_container_width=True, height=300)
+        st.dataframe(df_timeline, width='stretch', height=300)
 
         # Visual timeline (using expander for details)
         with st.expander("View Execution Flow"):
@@ -1052,12 +1076,42 @@ def render_execution_timeline(events: List[Dict[str, Any]]):
         st.info("Timeline will populate as tasks execute.")
 
 def render_event_card(event: Dict[str, Any]):
-    """Render individual event card with model attribution."""
+    """Render individual event card with model attribution (supports both ADZ and Atlas UI formats)."""
+    # Handle both event formats:
+    # ADZ format: {component, message, event_type, ...}
+    # Atlas UI format: {agent, action, model, provider, ...}
+
     timestamp = event.get("timestamp", "Unknown")
-    agent = event.get("agent", "Unknown")
-    action = event.get("action", "Unknown")
-    model = event.get("model", "Unknown")
-    provider = event.get("provider", "Unknown")
+
+    # Agent/Component
+    agent = event.get("agent") or event.get("component", "Unknown")
+
+    # Action/Message
+    action = event.get("action") or event.get("message", "Unknown")
+
+    # Model (infer from event_type if not present)
+    model = event.get("model")
+    if not model:
+        event_type = event.get("event_type", "")
+        if "workflow" in event_type:
+            model = "Multi-AI Workflow"
+        elif "cost" in event_type:
+            model = "Cost Tracker"
+        elif "quality" in event_type:
+            model = "Quality Analyzer"
+        else:
+            model = "ADZ Processor"
+
+    # Provider (infer from component if not present)
+    provider = event.get("provider")
+    if not provider:
+        component = event.get("component", "")
+        if "orchestrator" in component:
+            provider = "Task Orchestrator"
+        elif "dropzone" in component:
+            provider = "ADZ"
+        else:
+            provider = component.title() if component else "System"
 
     # Determine priority class
     priority_class = "event-card"
@@ -1080,12 +1134,12 @@ def render_event_card(event: Dict[str, Any]):
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <span class="{model_badge_class}">{model}</span>
-                <span style="color: #7f8c8d; font-size: 0.85rem;">{provider}</span>
+                <span style="color: #bdc3c7; font-size: 0.85rem; margin-left: 0.5rem;">{provider}</span>
             </div>
             <span style="color: #95a5a6; font-size: 0.8rem;">{timestamp}</span>
         </div>
-        <div style="margin-top: 0.5rem;">
-            <strong>{agent}</strong>: {action}
+        <div style="margin-top: 0.5rem; color: #ecf0f1;">
+            <strong style="color: #3498db;">{agent}</strong>: <span style="color: #e8e8e8;">{action}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1095,8 +1149,55 @@ def render_event_card(event: Dict[str, Any]):
 # ============================================================================
 
 def render_manual_task_builder():
-    """Render manual task submission form."""
+    """Render manual task submission form with processing mode selector."""
     st.markdown('<div class="section-header">📝 MANUAL TASK BUILDER</div>', unsafe_allow_html=True)
+
+    # Processing Mode - FORCE Direct Processing (background mode is broken)
+    st.session_state.processing_mode = "direct"  # Force direct mode
+
+    st.markdown("#### ⚙️ MASTER ORCHESTRATOR - INTELLIGENT WORKFLOW ROUTING")
+    st.success("""
+**🎯 AUTO-SELECTS OPTIMAL WORKFLOW**
+
+✅ **3 Workflow Types** - Auto-selects based on task complexity
+✅ **Multi-Provider LLMs** - Anthropic (Sonnet/Opus), Gemini, Grok, GPT-4
+✅ **Brutal Critic Validation** - Opus 4 critics score every output 0-100
+✅ **Smart Orchestration** - Only escalates when quality demands it
+
+**Available Workflows:**
+1. 🏗️ **Specialized Roles** - 4-phase: ARCHITECT → DEVELOPER → TESTER → REVIEWER
+   - For complex tasks requiring architecture & review
+   - Uses Opus for architect/reviewer, Sonnet for developer/tester
+
+2. ⚡ **Parallel Development** - Distributed parallel execution
+   - For multi-component tasks (2+ independent parts)
+   - 30-70% faster via parallel agent execution
+
+3. 📈 **Progressive Enhancement** - Tier escalation with quality gates
+   - For simple/fast tasks with brutal critic scoring
+   - Escalates through tiers only when quality < 85
+
+**Auto-Selection Logic:**
+- Multi-component? → Parallel
+- Simple & fast? → Progressive
+- Complex & high-quality? → Specialized Roles
+    """)
+
+    # Workflow selector
+    workflow_mode = st.radio(
+        "Workflow Selection:",
+        options=["auto", "specialized_roles", "parallel", "progressive"],
+        index=0,
+        horizontal=True,
+        help="Auto = Let orchestrator decide | Manual = Force specific workflow"
+    )
+
+    st.session_state.workflow_mode = workflow_mode
+
+    if workflow_mode != "auto":
+        st.info(f"🔒 **Manual Override**: Using {workflow_mode} workflow")
+
+    st.markdown("---")
 
     with st.form("manual_task_form"):
         task_description = st.text_area(
@@ -1142,7 +1243,16 @@ def render_manual_task_builder():
                 help="Maximum response length"
             )
 
-        submitted = st.form_submit_button("🚀 Submit Task", use_container_width=True)
+        # Output location - always show (direct mode is forced)
+        st.markdown("#### 📁 Output Location")
+        output_path = st.text_input(
+            "Save results to:",
+            value=st.session_state.output_save_path,
+            help="Choose where to save the generated files"
+        )
+        st.session_state.output_save_path = output_path
+
+        submitted = st.form_submit_button("🚀 Submit Task", width='stretch')
 
         if submitted:
             if not task_description.strip():
@@ -1191,10 +1301,78 @@ def render_manual_task_builder():
                         }
                     }
 
-                # Submit
-                task_id = submit_task_to_adz(task_data)
-                st.success(f"✅ Task submitted: `{task_id}`")
-                st.rerun()
+                # Route based on processing mode
+                if st.session_state.processing_mode == "direct":
+                    # Direct Processing with real-time progress
+                    st.markdown("---")
+                    st.markdown("### 🔄 Processing Task (Real-time)")
+
+                    # Progress container
+                    progress_container = st.container()
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+
+                    # Event callback to update UI
+                    def update_progress(agent, action, model="", progress=0, **kwargs):
+                        """Update Streamlit UI with progress."""
+                        st.session_state.current_task_progress.append({
+                            "timestamp": datetime.now().isoformat(),
+                            "agent": agent,
+                            "action": action,
+                            "model": model,
+                            "progress": progress
+                        })
+
+                        # Update progress bar
+                        progress_bar.progress(progress / 100.0)
+
+                        # Update status text
+                        status_text.markdown(f"**[{agent}]** {action}")
+
+                        # Emit to event stream
+                        emit_event(agent, action, model)
+
+                    # Create bridge to REAL MasterOrchestrator
+                    processor = AtlasMasterBridge(event_callback=update_progress)
+
+                    # Add task_id
+                    task_data["task_id"] = generate_task_id()
+
+                    # Get workflow mode
+                    workflow_mode = st.session_state.get("workflow_mode", "auto")
+
+                    # Process with MasterOrchestrator
+                    try:
+                        output_file = Path(st.session_state.output_save_path) / f"{task_data['task_id']}_result.csv"
+
+                        result = processor.process_task(
+                            task_data,
+                            output_path=output_file,
+                            workflow=workflow_mode
+                        )
+
+                        # Show completion
+                        st.success(f"✅ **Task Completed!**")
+                        st.info(f"📁 Results saved to: `{result['output_path']}`")
+                        st.metric("Duration", f"{result['duration']:.1f}s")
+
+                        # Show progress log
+                        with st.expander("📋 View Processing Log", expanded=False):
+                            for event in st.session_state.current_task_progress:
+                                st.text(f"[{event['timestamp']}] {event['agent']}: {event['action']}")
+
+                    except Exception as e:
+                        st.error(f"❌ **Processing failed**: {e}")
+                        import traceback
+                        with st.expander("Error Details"):
+                            st.code(traceback.format_exc())
+
+                else:
+                    # Background Processing (original ADZ daemon approach)
+                    task_id = submit_task_to_adz(task_data)
+                    st.success(f"✅ Task submitted to background daemon: `{task_id}`")
+                    st.info("Check **Recent Events** and **~/dropzone/results/** for progress")
+                    st.rerun()
 
 # ============================================================================
 # TASK HISTORY
@@ -1308,12 +1486,11 @@ def convert_feedback_to_yaml(
         from resilient_agent import ResilientBaseAgent
         from core.constants import Models
 
-        # Create Sonnet 4.5 agent for feedback conversion
+        # Create Claude Sonnet agent for feedback conversion
         converter_agent = ResilientBaseAgent(
             role="Feedback Conversion Specialist",
-            model=Models.SONNET,  # Sonnet 4.5 for structured output
-            temperature=0.2,
-            timeout=30
+            model=Models.SONNET,  # Claude Sonnet (authentication required)
+            temperature=0.2
         )
 
         # Build conversion prompt
@@ -1352,16 +1529,16 @@ IMPORTANT:
 
 Output ONLY the YAML, no additional text."""
 
-        # Call agent
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        yaml_output = loop.run_until_complete(
-            converter_agent.generate(conversion_prompt, context={})
+        # Call agent (synchronous call)
+        result = converter_agent.call(
+            prompt=conversion_prompt,
+            context={}
         )
 
-        loop.close()
+        if not result.success:
+            raise Exception(result.error or "Converter agent call failed")
+
+        yaml_output = result.output
 
         # Extract YAML from response (may be wrapped in code blocks)
         import re
@@ -1426,9 +1603,8 @@ def show_json_generator():
 
                     optimizer = ResilientBaseAgent(
                         role="Task Clarification Assistant",
-                        model=Models.HAIKU,
-                        temperature=0.3,
-                        timeout=15
+                        model=Models.SONNET,  # Claude Sonnet (authentication required)
+                        temperature=0.3
                     )
 
                     follow_up_prompt = f"""You are a helpful task clarification assistant. The user provided this brief task description:
@@ -1444,8 +1620,13 @@ Focus on:
 
 Return ONLY the numbered questions, one per line."""
 
-                    import asyncio
-                    response = asyncio.run(optimizer.generate(follow_up_prompt, context={}))
+                    result = optimizer.call(
+                        prompt=follow_up_prompt,
+                        context={}
+                    )
+                    if not result.success:
+                        raise Exception(result.error or "Optimizer call failed")
+                    response = result.output
                     st.session_state.generator_follow_ups = response.strip().split('\n')
 
                     st.info("💡 **Consider these clarifications:**")
@@ -1476,7 +1657,7 @@ Return ONLY the numbered questions, one per line."""
             options=[
                 ("claude-sonnet-4", "Sonnet 4 (Balanced)"),
                 ("claude-opus-4-20250514", "Opus 4.1 (Deep Reasoning + UltraThink)"),
-                ("claude-3-5-haiku-20241022", "Haiku 3.5 (Fast & Efficient)")
+                ("claude-3-5-sonnet-20241022", "Haiku 3.5 (Fast & Efficient)")
             ],
             format_func=lambda x: x[1],
             help="Choose the Claude model for task execution"
@@ -1541,7 +1722,7 @@ Return ONLY the numbered questions, one per line."""
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        if st.button("🚀 Generate & Submit to ADZ", use_container_width=True, type="primary"):
+        if st.button("🚀 Generate & Submit to ADZ", width='stretch', type="primary"):
             if not task_description:
                 st.error("❌ Please provide a task description")
                 return
@@ -1661,7 +1842,7 @@ def render_multi_perspective_dialogue():
                 help="Add Grok 3 for diverse viewpoint (~$0.01 cost)"
             )
 
-        submit_dialogue = st.form_submit_button("🚀 Start Multi-Perspective Dialogue", use_container_width=True, type="primary")
+        submit_dialogue = st.form_submit_button("🚀 Start Multi-Perspective Dialogue", width='stretch', type="primary")
 
         if submit_dialogue:
             if not task_input.strip():
@@ -1685,8 +1866,8 @@ def render_multi_perspective_dialogue():
 
                         dialogue = MultiPerspectiveDialogue(
                             proposer_model=Models.SONNET,
-                            challenger_model=Models.OPUS_4,
-                            orchestrator_model=Models.OPUS_4,
+                            challenger_model=Models.OPUS_4,  # ULTRATHINK capability
+                            orchestrator_model=Models.OPUS_4,  # ULTRATHINK for orchestration
                             max_iterations=max_iterations,
                             min_quality_threshold=quality_threshold,
                             enable_external_perspective=enable_external,
@@ -1803,6 +1984,9 @@ def main():
         initial_sidebar_state="expanded"
     )
 
+    # Authentication now handled by MCP bridge (uses Claude Code Max subscription)
+    # No manual API key configuration needed!
+
     # Inject CSS
     inject_custom_css()
 
@@ -1817,7 +2001,7 @@ def main():
     # JSON Generator Button - Prominently placed on home page
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🎯 Generate Task JSON", use_container_width=True, type="primary", help="Launch intelligent task builder with AI-powered prompt refinement"):
+        if st.button("🎯 Generate Task JSON", width='stretch', type="primary", help="Launch intelligent task builder with AI-powered prompt refinement"):
             show_json_generator()
 
     st.markdown("---")
@@ -1858,7 +2042,7 @@ def main():
 
         st.session_state.security_enabled = st.toggle(
             "Zero-Trust Security Filter",
-            value=True,
+            value=st.session_state.security_enabled,
             help="Enable Haiku 4.5 security validation for all inputs"
         )
 

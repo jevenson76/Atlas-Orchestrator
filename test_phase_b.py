@@ -359,7 +359,7 @@ def test_priority_5_cost_tracking():
 
     tracker.track(
         agent_id='test_agent_2',
-        model='claude-3-5-haiku-20241022',
+        model='claude-3-5-sonnet-20241022',
         tokens_in=500,
         tokens_out=250,
         cost=0.0019,

@@ -132,7 +132,8 @@ class MasterOrchestrator:
         logger.info(f"Executing with {workflow} workflow: {task[:100]}...")
 
         if workflow == "specialized_roles":
-            result = await self.specialized_roles.execute_workflow(task, context)
+            # Specialized roles is synchronous (not async)
+            result = self.specialized_roles.execute_workflow(task, context)
         elif workflow == "parallel":
             result = await self.parallel.execute_workflow(task, context)
         elif workflow == "progressive":
@@ -175,37 +176,37 @@ class MasterOrchestrator:
         speed_priority = context.get("speed_priority", False)
         cost_priority = context.get("cost_priority", False)
 
-        # Decision logic
-        # 1. Multi-component tasks → Parallel (if 2+ components)
-        if characteristics.component_count >= 2:
-            logger.info("→ Parallel workflow (multi-component task)")
-            return "parallel"
-
-        # 2. Simple tasks → Progressive (quality < 85, simple complexity)
-        if characteristics.complexity == "simple" and characteristics.estimated_quality_target < 85:
-            logger.info("→ Progressive workflow (simple task, speed-optimized)")
-            return "progressive"
-
-        # 3. Speed priority → Progressive (tries fast models first)
-        if speed_priority:
-            logger.info("→ Progressive workflow (speed priority)")
-            return "progressive"
-
-        # 4. High quality requirements → Specialized Roles (quality >= 90)
+        # Decision logic (REORDERED: Quality checks FIRST to prevent parallel workflow override)
+        # 1. High quality requirements → Specialized Roles (quality >= 90)
         quality_target = explicit_quality if explicit_quality else characteristics.estimated_quality_target
         if quality_target >= 90:
-            logger.info("→ Specialized Roles workflow (high quality requirement)")
+            logger.info("→ Specialized Roles workflow (high quality requirement >= 90)")
             return "specialized_roles"
 
-        # 5. Requires architecture/review → Specialized Roles
+        # 2. Requires architecture/review → Specialized Roles
         if characteristics.requires_architecture or characteristics.requires_review:
             logger.info("→ Specialized Roles workflow (needs architecture/review)")
             return "specialized_roles"
 
-        # 6. Complex task → Specialized Roles (default for complex)
+        # 3. Complex task → Specialized Roles (default for complex)
         if characteristics.complexity == "complex":
             logger.info("→ Specialized Roles workflow (complex task)")
             return "specialized_roles"
+
+        # 4. Multi-component CODE tasks → Parallel (if 2+ components AND quality < 90)
+        if characteristics.component_count >= 2:
+            logger.info("→ Parallel workflow (multi-component task with quality < 90)")
+            return "parallel"
+
+        # 5. Simple tasks → Progressive (quality < 85, simple complexity)
+        if characteristics.complexity == "simple" and characteristics.estimated_quality_target < 85:
+            logger.info("→ Progressive workflow (simple task, speed-optimized)")
+            return "progressive"
+
+        # 6. Speed priority → Progressive (tries fast models first)
+        if speed_priority:
+            logger.info("→ Progressive workflow (speed priority)")
+            return "progressive"
 
         # Default: Progressive (good balance of speed and quality)
         logger.info("→ Progressive workflow (default)")

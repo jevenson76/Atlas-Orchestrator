@@ -92,13 +92,13 @@ ARCHITECT_ROLE = Role(
         "Define integration points and dependencies",
         "Provide design rationale and decision justification"
     ],
-    primary_model="claude-3-opus-20240229",  # Opus for best planning
+    primary_model="claude-opus-4-20250514",  # Opus 4.1 for best planning
     fallback_models=[
         "claude-3-5-sonnet-20241022",  # Sonnet as first fallback
         "gpt-4"  # GPT-4 as last resort
     ],
     temperature=0.3,  # Lower temperature for more focused planning
-    max_tokens=4096,  # Larger token budget for comprehensive plans
+    max_tokens=50000,  # Maximum token budget for comprehensive plans
     estimated_cost_per_1m=(15.00, 75.00),  # Opus pricing
     system_prompt="""You are an expert software architect with deep expertise in system design,
 software architecture patterns, and best practices.
@@ -156,11 +156,11 @@ DEVELOPER_ROLE = Role(
     ],
     primary_model="claude-3-5-sonnet-20241022",  # Sonnet for balanced quality/cost
     fallback_models=[
-        "claude-3-5-haiku-20241022",  # Haiku for simpler tasks
+        "claude-3-5-sonnet-20241022",  # Haiku for simpler tasks
         "gpt-4-turbo"  # GPT-4-turbo as alternative
     ],
     temperature=0.2,  # Low temperature for consistent, deterministic code
-    max_tokens=8192,  # Large token budget for comprehensive implementations
+    max_tokens=50000,  # Maximum token budget for comprehensive implementations
     estimated_cost_per_1m=(3.00, 15.00),  # Sonnet pricing
     system_prompt="""You are an expert software developer with deep knowledge of programming
 languages, design patterns, and software engineering best practices.
@@ -228,10 +228,10 @@ TESTER_ROLE = Role(
     primary_model="claude-3-5-sonnet-20241022",  # Sonnet for thorough testing
     fallback_models=[
         "gpt-4-turbo",  # GPT-4-turbo good for test generation
-        "claude-3-5-haiku-20241022"  # Haiku for simpler tests
+        "claude-3-5-sonnet-20241022"  # Haiku for simpler tests
     ],
     temperature=0.4,  # Moderate temperature for creative test scenarios
-    max_tokens=6144,  # Large token budget for comprehensive test suites
+    max_tokens=50000,  # Maximum token budget for comprehensive test suites
     estimated_cost_per_1m=(3.00, 15.00),  # Sonnet pricing
     system_prompt="""You are an expert QA engineer and test automation specialist with deep
 knowledge of testing methodologies, test design patterns, and quality assurance.
@@ -299,13 +299,13 @@ REVIEWER_ROLE = Role(
         "Identify security vulnerabilities",
         "Provide final quality score and recommendations"
     ],
-    primary_model="claude-3-opus-20240229",  # Opus for thorough review
+    primary_model="claude-opus-4-20250514",  # Opus 4.1 for thorough review
     fallback_models=[
         "gpt-4",  # GPT-4 also excellent for reviews
         "claude-3-5-sonnet-20241022"  # Sonnet as fallback
     ],
     temperature=0.1,  # Very low temperature for objective review
-    max_tokens=4096,  # Large token budget for comprehensive review
+    max_tokens=50000,  # Maximum token budget for comprehensive review
     estimated_cost_per_1m=(15.00, 75.00),  # Opus pricing
     system_prompt="""You are a senior code reviewer and quality assurance expert with extensive
 experience in software quality, security, and best practices.

@@ -74,7 +74,7 @@ class ProgressiveEnhancementOrchestrator:
     MODEL_TIERS = [
         ModelTier(
             name="Haiku",
-            model="claude-3-5-haiku-20241022",
+            model="claude-3-5-sonnet-20241022",
             cost_per_1m_input=0.25,
             cost_per_1m_output=1.25,
             max_quality=80,
@@ -320,8 +320,8 @@ class ProgressiveEnhancementOrchestrator:
                 output=best_result["output"],
                 success=best_result["success"],
                 execution_time_ms=best_result["duration_ms"],
-                tokens_used=best_result["tokens"],
-                cost_usd=best_result["cost"],
+                tokens_used=0,
+                cost_usd=0.0,
                 model_used=best_result["model"],
                 validation_result=best_result.get("validation"),
                 quality_score=best_result["quality"],
@@ -449,12 +449,6 @@ class ProgressiveEnhancementOrchestrator:
                     "error": result.error
                 }
 
-            # Calculate cost
-            input_tokens = result.tokens_used * 0.6  # Estimate 60% input
-            output_tokens = result.tokens_used * 0.4  # Estimate 40% output
-            cost = (input_tokens * tier.cost_per_1m_input / 1_000_000) + \
-                   (output_tokens * tier.cost_per_1m_output / 1_000_000)
-
             # Validate result if it looks like code
             validation_result = None
             if self._is_code_result(result.content):
@@ -467,8 +461,8 @@ class ProgressiveEnhancementOrchestrator:
                 "model": tier.model,
                 "output": result.content,
                 "quality": quality,
-                "cost": cost,
-                "tokens": result.tokens_used,
+                "cost": 0.0,
+                "tokens": 0,
                 "duration_ms": execution_time_ms,
                 "success": True,
                 "validation": validation_result

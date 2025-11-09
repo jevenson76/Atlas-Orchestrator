@@ -306,7 +306,7 @@ class TestSpecializedRolesOrchestrator:
         )
 
         # Haiku -> Sonnet
-        assert "sonnet" in orchestrator._escalate_model("claude-3-5-haiku-20241022").lower()
+        assert "sonnet" in orchestrator._escalate_model("claude-3-5-sonnet-20241022").lower()
 
         # Sonnet -> Opus
         assert "opus" in orchestrator._escalate_model("claude-3-5-sonnet-20241022").lower()

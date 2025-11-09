@@ -14,7 +14,7 @@ class ModelSelector:
     @staticmethod
     def select(complexity: str, cost_sensitive: bool = False) -> str:
         """
-        Select the appropriate Claude model based on task complexity.
+        Select the appropriate model based on task complexity.
 
         Args:
             complexity: Task complexity level ('high', 'medium', 'low')
@@ -24,12 +24,12 @@ class ModelSelector:
             Model identifier string for the selected model
         """
         if cost_sensitive:
-            return Models.HAIKU
+            return Models.GEMINI_FLASH  # Fast, cheap alternative
 
         model_map = {
-            "high": Models.OPUS,
-            "medium": Models.SONNET,
-            "low": Models.HAIKU
+            "high": Models.OPUS_4,  # High complexity - ULTRATHINK required
+            "medium": Models.SONNET,  # Balanced tasks - Claude required
+            "low": Models.GEMINI_FLASH  # Simple, fast tasks - can use Gemini
         }
 
         return model_map.get(complexity, Models.SONNET)

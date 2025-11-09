@@ -67,7 +67,7 @@ class ExpertAgent(SubAgent):
         config = self._load_agent_config(role.value)
 
         # Use config values with overrides from parameters
-        model = kwargs.pop('model', config.get('model', 'claude-3-5-haiku-20241022'))
+        model = kwargs.pop('model', config.get('model', 'claude-3-5-sonnet-20241022'))
         dependencies = kwargs.pop('dependencies', set(config.get('dependencies', [])))
 
         super().__init__(
@@ -420,7 +420,7 @@ class DocumentationSpecialist(ExpertAgent):
     def __init__(self, **kwargs):
         super().__init__(
             role=AgentRole.DOCUMENTATION_SPECIALIST,
-            model="claude-3-5-haiku-20241022",  # Cheaper model for docs
+            model="claude-3-5-sonnet-20241022",  # Cheaper model for docs
             **kwargs
         )
 
