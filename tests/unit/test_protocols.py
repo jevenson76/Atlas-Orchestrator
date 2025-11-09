@@ -191,7 +191,7 @@ class TestDependencyFactoryGetModelSelector:
         selector = factory.get_model_selector()
 
         assert hasattr(selector, 'select_model')
-        assert hasattr(selector, 'get_model_temperature')
+        assert hasattr(selector, 'get_temperature')
         assert hasattr(selector, 'estimate_cost')
 
 
@@ -277,8 +277,8 @@ class TestGlobalFactory:
         assert factory1 is not factory2
 
 
-class TestSimpleModelSelector:
-    """Test SimpleModelSelector implementation."""
+class TestCentralizedModelSelector:
+    """Test centralized ModelSelector implementation (Phase 2D)."""
 
     def test_select_model_code_validation_quick(self):
         """Test model selection for code validation quick level."""
@@ -307,30 +307,30 @@ class TestSimpleModelSelector:
 
         assert model == "claude-opus-4-20250514"
 
-    def test_get_model_temperature_code_validation(self):
+    def test_get_temperature_code_validation(self):
         """Test temperature for code validation."""
         factory = DependencyFactory()
         selector = factory.get_model_selector()
 
-        temp = selector.get_model_temperature("code-validation")
+        temp = selector.get_temperature("code-validation")
 
         assert temp == 0.2
 
-    def test_get_model_temperature_documentation(self):
+    def test_get_temperature_documentation(self):
         """Test temperature for documentation."""
         factory = DependencyFactory()
         selector = factory.get_model_selector()
 
-        temp = selector.get_model_temperature("documentation")
+        temp = selector.get_temperature("documentation")
 
         assert temp == 0.3
 
-    def test_get_model_temperature_unknown_defaults(self):
+    def test_get_temperature_unknown_defaults(self):
         """Test temperature defaults for unknown task type."""
         factory = DependencyFactory()
         selector = factory.get_model_selector()
 
-        temp = selector.get_model_temperature("unknown-task")
+        temp = selector.get_temperature("unknown-task")
 
         assert temp == 0.2
 

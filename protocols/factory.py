@@ -178,9 +178,9 @@ class DependencyFactory:
         if not fresh_instance and self._model_selector_instance is not None:
             return self._model_selector_instance
 
-        # For now, return simple implementation
-        # This will be replaced with centralized ModelSelector in Phase 2D
-        instance = SimpleModelSelector()
+        # Use centralized ModelSelector (Phase 2D)
+        from utils import ModelSelector
+        instance = ModelSelector()
 
         if not fresh_instance:
             self._model_selector_instance = instance
@@ -280,62 +280,7 @@ class NoOpSessionManager:
         return {"total_calls": 0, "total_cost": 0.0}
 
 
-class SimpleModelSelector:
-    """Simple model selector implementation (placeholder for Phase 2D)."""
-
-    MODEL_MAP = {
-        "code-validation": {
-            "quick": "claude-haiku-4-5-20250611",
-            "standard": "claude-sonnet-4-5-20250929",
-            "thorough": "claude-opus-4-20250514"
-        },
-        "documentation": {
-            "quick": "claude-sonnet-4-5-20250929",
-            "standard": "claude-sonnet-4-5-20250929",
-            "thorough": "claude-sonnet-4-5-20250929"
-        }
-    }
-
-    TEMPERATURES = {
-        "code-validation": 0.2,
-        "documentation": 0.3,
-        "default": 0.2
-    }
-
-    COST_PER_1M_TOKENS = {
-        "claude-haiku-4-5-20250611": {"input": 0.25, "output": 1.25},
-        "claude-sonnet-4-5-20250929": {"input": 3.0, "output": 15.0},
-        "claude-opus-4-20250514": {"input": 15.0, "output": 75.0}
-    }
-
-    def select_model(
-        self,
-        task_type: str,
-        complexity_level: str = "standard",
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Select model based on task type and complexity."""
-        models = self.MODEL_MAP.get(task_type, self.MODEL_MAP["code-validation"])
-        return models.get(complexity_level, models["standard"])
-
-    def get_model_temperature(self, task_type: str) -> float:
-        """Get temperature for task type."""
-        return self.TEMPERATURES.get(task_type, self.TEMPERATURES["default"])
-
-    def estimate_cost(
-        self,
-        model_name: str,
-        input_tokens: int,
-        output_tokens: int
-    ) -> float:
-        """Estimate cost in USD."""
-        costs = self.COST_PER_1M_TOKENS.get(model_name)
-        if not costs:
-            return 0.0
-
-        input_cost = (input_tokens / 1_000_000) * costs["input"]
-        output_cost = (output_tokens / 1_000_000) * costs["output"]
-        return input_cost + output_cost
+# SimpleModelSelector removed in Phase 2D - now using centralized utils.ModelSelector
 
 
 class NoOpPromptManager:

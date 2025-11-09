@@ -34,6 +34,9 @@ from dataclasses import dataclass
 from resilient_agent import ResilientBaseAgent
 from session_management import EnhancedSessionManager
 
+# Centralized utilities
+from utils import ModelSelector
+
 # Validation types and interfaces
 from validation.interfaces import (
     ValidationResult,
@@ -139,6 +142,9 @@ class ValidationOrchestrator(ResilientBaseAgent):
 
         # Cache for loaded validator prompts
         self._validator_cache: Dict[str, str] = {}
+
+        # Centralized model selection (Phase 2D)
+        self.model_selector = ModelSelector()
 
         # Execution tracking
         self._execution_stats = {
@@ -343,6 +349,8 @@ class ValidationOrchestrator(ResilientBaseAgent):
         """
         Select appropriate model for validator and level.
 
+        Uses centralized ModelSelector (Phase 2D) for consistent model selection.
+
         Args:
             validator_name: Name of validator
             level: Validation level
@@ -350,10 +358,15 @@ class ValidationOrchestrator(ResilientBaseAgent):
         Returns:
             Model identifier string for Anthropic API
         """
-        return VALIDATION_MODELS.get(validator_name, {}).get(
-            level,
-            "claude-sonnet-4-5-20250929"  # Default fallback
-        )
+        # Map validator names to task types
+        validator_to_task = {
+            "code-validator": "code-validation",
+            "doc-validator": "documentation",
+            "test-validator": "test-validation"
+        }
+
+        task_type = validator_to_task.get(validator_name, "general")
+        return self.model_selector.select_model(task_type, level)
 
     def _format_prompt(
         self,
@@ -503,6 +516,8 @@ class ValidationOrchestrator(ResilientBaseAgent):
         """
         Estimate API cost based on model and response length.
 
+        Uses centralized ModelSelector (Phase 2D) for accurate cost estimation.
+
         Args:
             model: Model identifier
             response: LLM response text
@@ -510,26 +525,16 @@ class ValidationOrchestrator(ResilientBaseAgent):
         Returns:
             Estimated cost in USD
         """
-        # Rough token estimation (1 token ≈ 4 characters)
-        output_tokens = len(response) / 4
+        # Estimate tokens using ModelSelector
+        output_tokens = self.model_selector.estimate_tokens(response)
         input_tokens = 2000  # Typical prompt size
 
-        # Cost per million tokens
-        if "haiku" in model.lower():
-            input_cost = 0.25
-            output_cost = 1.25
-        elif "opus" in model.lower():
-            input_cost = 15.0
-            output_cost = 75.0
-        else:  # Sonnet
-            input_cost = 3.0
-            output_cost = 15.0
-
-        # Calculate total cost
-        cost = (input_tokens * input_cost / 1_000_000) + \
-               (output_tokens * output_cost / 1_000_000)
-
-        return round(cost, 6)
+        # Use centralized cost estimation
+        return self.model_selector.estimate_cost(
+            model_name=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
 
     def _get_prompt_template(self, validator_name: str) -> str:
         """
